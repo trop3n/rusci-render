@@ -1,0 +1,69 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/osci-core",
+    "crates/osci-effects",
+    "crates/osci-parsers",
+    "crates/osci-synth",
+    "crates/osci-visualizer",
+    "crates/osci-gui",
+    "crates/osci-plugin",
+    "crates/osci-standalone",
+    "crates/osci-net",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0"
+
+[workspace.dependencies]
+# Core math
+glam = "0.29"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Thread-safe primitives
+crossbeam = "0.8"
+
+# Audio plugin framework
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["standalone"] }
+nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git" }
+
+# GUI
+egui = "0.30"
+
+# GPU rendering
+wgpu = "24"
+
+# Lua scripting
+mlua = { version = "0.10", features = ["luajit", "send"] }
+
+# File format parsing
+usvg = "0.44"
+lyon = "1"
+tobj = "4"
+image = "0.25"
+gif = "0.13"
+symphonia = { version = "0.5", features = ["all"] }
+
+# Text rendering
+cosmic-text = "0.12"
+
+# Networking
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.26"
+
+# Logging
+log = "0.4"
+
+# Internal crates
+osci-core = { path = "crates/osci-core" }
+osci-effects = { path = "crates/osci-effects", default-features = false }
+osci-parsers = { path = "crates/osci-parsers" }
+osci-synth = { path = "crates/osci-synth" }
+osci-visualizer = { path = "crates/osci-visualizer" }
+osci-gui = { path = "crates/osci-gui" }
+osci-net = { path = "crates/osci-net" }
