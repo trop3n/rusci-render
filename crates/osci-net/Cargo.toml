@@ -1,0 +1,12 @@
+[package]
+name = "osci-net"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+osci-core = { workspace = true }
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }

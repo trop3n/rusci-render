@@ -1,0 +1,12 @@
+[package]
+name = "osci-standalone"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "rusci-render"
+path = "src/main.rs"
+
+[dependencies]
+osci-plugin = { path = "../osci-plugin" }
+nih_plug = { workspace = true }

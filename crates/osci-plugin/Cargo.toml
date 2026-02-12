@@ -1,0 +1,19 @@
+[package]
+name = "osci-plugin"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+osci-core = { workspace = true }
+osci-effects = { workspace = true }
+osci-synth = { workspace = true }
+osci-parsers = { workspace = true }
+osci-gui = { workspace = true }
+nih_plug = { workspace = true }
+nih_plug_egui = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }

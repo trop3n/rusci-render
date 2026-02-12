@@ -1,0 +1,30 @@
+pub mod registry;
+
+// Effect implementations — Phase 1
+pub mod bitcrush;
+pub mod bulge;
+pub mod vector_cancelling;
+pub mod ripple;
+pub mod rotate;
+pub mod translate;
+pub mod scale;
+pub mod swirl;
+pub mod smooth;
+pub mod delay;
+pub mod dashed_line;
+pub mod wobble;
+pub mod duplicator;
+pub mod multiplex;
+pub mod unfold;
+pub mod bounce;
+pub mod twist;
+pub mod skew;
+pub mod polygonizer;
+pub mod kaleidoscope;
+pub mod vortex;
+pub mod god_ray;
+pub mod spiral_bitcrush;
+pub mod perspective;
+pub mod volume;
+pub mod threshold;
+pub mod frequency;

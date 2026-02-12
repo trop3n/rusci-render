@@ -1,0 +1,12 @@
+[package]
+name = "osci-gui"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+osci-core = { workspace = true }
+osci-effects = { workspace = true }
+osci-visualizer = { workspace = true }
+egui = { workspace = true }
+serde = { workspace = true }
+log = { workspace = true }

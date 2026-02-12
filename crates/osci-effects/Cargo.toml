@@ -1,0 +1,13 @@
+[package]
+name = "osci-effects"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+osci-core = { workspace = true }
+glam = { workspace = true }
+mlua = { workspace = true, optional = true }
+
+[features]
+default = ["lua"]
+lua = ["dep:mlua"]

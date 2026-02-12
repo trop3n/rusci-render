@@ -1,0 +1,11 @@
+[package]
+name = "osci-synth"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+osci-core = { workspace = true }
+osci-effects = { workspace = true }
+glam = { workspace = true }
+crossbeam = { workspace = true }
+log = { workspace = true }
