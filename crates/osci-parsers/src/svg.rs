@@ -11,7 +11,7 @@ pub fn parse_svg(data: &[u8]) -> Result<Vec<Box<dyn Shape>>, String> {
         .map_err(|e| format!("Failed to parse SVG: {e}"))?;
 
     let mut shapes: Vec<Box<dyn Shape>> = Vec::new();
-    collect_shapes_from_group(&tree.root, &mut shapes);
+    collect_shapes_from_group(tree.root(), &mut shapes);
 
     if !shapes.is_empty() {
         normalize_shapes(&mut shapes);
@@ -22,7 +22,7 @@ pub fn parse_svg(data: &[u8]) -> Result<Vec<Box<dyn Shape>>, String> {
 
 /// Recursively walk a usvg Group node, collecting shapes from all Path children.
 fn collect_shapes_from_group(group: &usvg::Group, shapes: &mut Vec<Box<dyn Shape>>) {
-    for child in &group.children {
+    for child in group.children() {
         match child {
             usvg::Node::Group(ref g) => {
                 collect_shapes_from_group(g, shapes);
@@ -39,26 +39,33 @@ fn collect_shapes_from_group(group: &usvg::Group, shapes: &mut Vec<Box<dyn Shape
 ///
 /// Each segment is transformed by the path's absolute transform before being
 /// converted. Y coordinates are negated to flip from SVG's Y-down to Y-up.
+/// Apply the path's absolute transform to a tiny-skia Point, returning transformed (x, y) as f64.
+fn transform_point(transform: &usvg::Transform, x: f32, y: f32) -> (f64, f64) {
+    let mut pt = usvg::tiny_skia_path::Point { x, y };
+    transform.map_point(&mut pt);
+    (pt.x as f64, pt.y as f64)
+}
+
 fn collect_shapes_from_path(path: &usvg::Path, shapes: &mut Vec<Box<dyn Shape>>) {
-    let transform = path.abs_transform;
+    let transform = path.abs_transform();
 
     let mut cur_x: f64 = 0.0;
     let mut cur_y: f64 = 0.0;
     let mut subpath_start_x: f64 = 0.0;
     let mut subpath_start_y: f64 = 0.0;
 
-    for segment in path.data.segments() {
+    for segment in path.data().segments() {
         use usvg::tiny_skia_path::PathSegment;
         match segment {
             PathSegment::MoveTo(pt) => {
-                let (tx, ty) = transform.map_point(pt.x as f64, pt.y as f64);
+                let (tx, ty) = transform_point(&transform, pt.x, pt.y);
                 cur_x = tx;
                 cur_y = ty;
                 subpath_start_x = tx;
                 subpath_start_y = ty;
             }
             PathSegment::LineTo(pt) => {
-                let (tx, ty) = transform.map_point(pt.x as f64, pt.y as f64);
+                let (tx, ty) = transform_point(&transform, pt.x, pt.y);
                 shapes.push(Box::new(Line::new_2d(
                     cur_x as f32,
                     -cur_y as f32,
@@ -69,8 +76,8 @@ fn collect_shapes_from_path(path: &usvg::Path, shapes: &mut Vec<Box<dyn Shape>>)
                 cur_y = ty;
             }
             PathSegment::QuadTo(pt1, pt2) => {
-                let (tx1, ty1) = transform.map_point(pt1.x as f64, pt1.y as f64);
-                let (tx2, ty2) = transform.map_point(pt2.x as f64, pt2.y as f64);
+                let (tx1, ty1) = transform_point(&transform, pt1.x, pt1.y);
+                let (tx2, ty2) = transform_point(&transform, pt2.x, pt2.y);
                 shapes.push(Box::new(QuadraticBezierCurve::new(
                     cur_x as f32,
                     -cur_y as f32,
@@ -83,9 +90,9 @@ fn collect_shapes_from_path(path: &usvg::Path, shapes: &mut Vec<Box<dyn Shape>>)
                 cur_y = ty2;
             }
             PathSegment::CubicTo(pt1, pt2, pt3) => {
-                let (tx1, ty1) = transform.map_point(pt1.x as f64, pt1.y as f64);
-                let (tx2, ty2) = transform.map_point(pt2.x as f64, pt2.y as f64);
-                let (tx3, ty3) = transform.map_point(pt3.x as f64, pt3.y as f64);
+                let (tx1, ty1) = transform_point(&transform, pt1.x, pt1.y);
+                let (tx2, ty2) = transform_point(&transform, pt2.x, pt2.y);
+                let (tx3, ty3) = transform_point(&transform, pt3.x, pt3.y);
                 shapes.push(Box::new(CubicBezierCurve::new(
                     cur_x as f32,
                     -cur_y as f32,

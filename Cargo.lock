@@ -2876,6 +2876,7 @@ name = "osci-parsers"
 version = "0.1.0"
 dependencies = [
  "cosmic-text",
+ "crossbeam",
  "gif 0.13.3",
  "glam",
  "image",
@@ -2883,6 +2884,8 @@ dependencies = [
  "lyon",
  "mlua",
  "osci-core",
+ "serde",
+ "serde_json",
  "symphonia",
  "tobj",
  "usvg",
@@ -2921,6 +2924,7 @@ dependencies = [
  "log",
  "osci-core",
  "osci-effects",
+ "osci-parsers",
 ]
 
 [[package]]

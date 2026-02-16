@@ -9,3 +9,6 @@ osci-effects = { workspace = true }
 glam = { workspace = true }
 crossbeam = { workspace = true }
 log = { workspace = true }
+
+[dev-dependencies]
+osci-parsers = { workspace = true }
