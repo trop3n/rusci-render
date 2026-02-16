@@ -1,4 +1,5 @@
+use nih_plug::prelude::*;
+
 fn main() {
-    // TODO: Phase 6 — standalone application
-    println!("rusci-render standalone — not yet implemented");
+    nih_export_standalone::<osci_plugin::OsciPlugin>();
 }

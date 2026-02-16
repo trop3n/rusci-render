@@ -29,7 +29,7 @@ serde_json = "1"
 crossbeam = "0.8"
 
 # Audio plugin framework
-nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["standalone"] }
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git" }
 nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git" }
 
 # GUI

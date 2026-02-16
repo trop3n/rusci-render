@@ -9,4 +9,4 @@ path = "src/main.rs"
 
 [dependencies]
 osci-plugin = { path = "../osci-plugin" }
-nih_plug = { workspace = true }
+nih_plug = { workspace = true, features = ["standalone"] }

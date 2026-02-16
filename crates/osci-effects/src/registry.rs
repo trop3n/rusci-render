@@ -182,6 +182,7 @@ pub fn build_registry() -> Vec<EffectEntry> {
             parameters: || vec![
                 EffectParameter::new("Skew X", "Horizontal skew.", "skewX", 0.0, -1.0, 1.0),
                 EffectParameter::new("Skew Y", "Vertical skew.", "skewY", 0.0, -1.0, 1.0),
+                EffectParameter::new("Skew Z", "Depth skew.", "skewZ", 0.0, -1.0, 1.0),
             ],
         },
         EffectEntry {
