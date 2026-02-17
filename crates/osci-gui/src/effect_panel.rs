@@ -3,6 +3,27 @@ use crossbeam::channel::Sender;
 use nih_plug_egui::egui::{self, Ui};
 use osci_core::LfoType;
 use osci_effects::registry::build_registry;
+use std::sync::OnceLock;
+
+/// Cached (id, name) pairs for the "Add Effect" dropdown.
+/// Built once from the registry and reused every frame.
+struct RegistryEntry {
+    id: String,
+    name: &'static str,
+}
+
+fn cached_registry() -> &'static [RegistryEntry] {
+    static ENTRIES: OnceLock<Vec<RegistryEntry>> = OnceLock::new();
+    ENTRIES.get_or_init(|| {
+        build_registry()
+            .into_iter()
+            .map(|e| RegistryEntry {
+                id: e.id.to_string(),
+                name: e.name,
+            })
+            .collect()
+    })
+}
 
 /// Draw the full effect chain panel: list of effects + add-effect controls.
 pub fn draw_effect_chain(
@@ -63,9 +84,9 @@ pub fn draw_effect_chain(
 
     ui.separator();
 
-    // Add effect dropdown
+    // Add effect dropdown (uses cached registry)
     ui.horizontal(|ui| {
-        let registry = build_registry();
+        let registry = cached_registry();
         egui::ComboBox::from_label("Add Effect")
             .selected_text(
                 registry
@@ -75,8 +96,8 @@ pub fn draw_effect_chain(
                     .unwrap_or("Select..."),
             )
             .show_ui(ui, |ui| {
-                for entry in &registry {
-                    ui.selectable_value(selected_effect_id, entry.id.to_string(), entry.name);
+                for entry in registry {
+                    ui.selectable_value(selected_effect_id, entry.id.clone(), entry.name);
                 }
             });
 

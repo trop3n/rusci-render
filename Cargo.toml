@@ -33,7 +33,7 @@ nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git" }
 nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git" }
 
 # GUI
-egui = "0.30"
+egui = "0.31"
 
 # GPU rendering
 wgpu = "24"

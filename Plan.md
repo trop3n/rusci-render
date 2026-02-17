@@ -536,6 +536,67 @@ Audio Samples (X, Y, [Z])
 
 ---
 
+## Phase Completion Status
+
+### Phase 1: Core Engine — COMPLETE
+All core types implemented in `osci-core`: Point (6-field: x/y/z/r/g/b), Shape (Line, CubicBezier, QuadraticBezier, CircleArc), Frame, EffectApplication trait, EffectParameter with full LFO/smoothing/sidechain, Env (ADSR with curve interpolation), LfoState. 27 unit tests passing.
+
+### Phase 2: File Parsers — COMPLETE
+All parsers in `osci-parsers`: SVG (usvg+lyon), OBJ (tobj edge extraction), text (cosmic-text glyph outlines), image (threshold scan), GIF (animated frames), GPLA (line art binary/JSON), audio (symphonia). Chinese Postman not yet implemented (deferred). 49 tests passing.
+
+### Phase 3: Plugin Shell — COMPLETE
+`osci-plugin` builds as VST3/CLAP via nih-plug. `osci-synth` provides 16-voice polyphonic synthesizer with per-voice effect chains, ADSR envelopes, shape rendering, voice stealing. `osci-effects` has all 27 effects with registry pattern. 25 synth+effect tests passing.
+
+### Phase 4: egui Plugin Editor — COMPLETE
+Full egui editor integrated via `nih_plug_egui`. Implementation:
+
+**Architecture:**
+- **UI → Audio (params):** nih-plug `FloatParam` for volume, frequency, ADSR (attack/decay/sustain/release) — DAW-automatable
+- **UI → Audio (effects):** `crossbeam::channel::bounded(256)` carrying `UiCommand` enums — lock-free, drained at start of `process()`
+- **Audio → UI (visualization):** `Arc<Mutex<VisBuffer>>` — audio writes last 512 samples per block, UI reads per frame
+- **Effect template:** Audio thread maintains `effect_template: Vec<VoiceEffect>`, syncs to all 16 voice slots via `set_effect_template()` on change
+
+**Files created/modified:**
+- `osci-synth/src/voice.rs` — `VoiceEffect::clone_voice_effect()` for deep-copying effects to voices
+- `osci-synth/src/synthesizer.rs` — `set_effect_template()` and `num_voices()`
+- `osci-gui/src/state.rs` — `UiCommand` (8 variants), `EffectSnapshot`, `VisBuffer`, `EditorSharedState`
+- `osci-gui/src/scope.rs` — XY Lissajous oscilloscope (green lines on black, egui::Painter)
+- `osci-gui/src/effect_panel.rs` — Full effect chain UI: add/remove/reorder, per-param sliders with LFO type/rate/range, smoothing, sidechain. Registry cached via `OnceLock`
+- `osci-gui/src/lib.rs` — `draw_editor()` layout: Synth Controls → Effect Chain → XY Scope
+- `osci-plugin/src/lib.rs` — Complete rewrite: `OsciParams` with ADSR, `editor()` via `create_egui_editor`, `process()` drains command channel, builds ADSR from params, syncs effect template, updates vis buffer
+
+**Key details for next session:**
+- `osci-gui` does NOT depend on `egui` directly — it uses `nih_plug_egui::egui` (v0.31.1) to avoid version conflicts. The workspace `egui` dep was bumped to `"0.31"` to match.
+- `osci-gui` no longer depends on `osci-visualizer` (removed in Phase 4, will be re-added in Phase 5 when wgpu is ready)
+- The `editor()` method uses `egui::CentralPanel` inside the update closure (not `ResizableWindow`)
+- `OsciPluginParamRefs` is a struct of `&FloatParam` references passed into `draw_editor()` to decouple the GUI crate from the plugin's Params derive
+- Effect snapshots are published from the audio thread whenever any `UiCommand` modifies the template — the UI clones them each frame via `Arc<Mutex>`
+- System deps required: `libgl-dev libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libxkbcommon-dev libx11-xcb-dev`
+
+**Build status:** Clean (no warnings in osci-gui or osci-plugin). All 91 existing tests pass.
+
+### Phase 5: Visualizer — NEXT
+
+**What needs to happen:**
+The `osci-visualizer` crate exists but is stubbed. Phase 5 implements the wgpu GPU rendering pipeline and embeds it in the egui editor.
+
+**Key tasks:**
+1. **wgpu line renderer** — Gaussian beam rendering (port from GLSL to WGSL). Each line segment becomes a 4-vertex quad with analytical erf()-based brightness falloff.
+2. **Multi-pass bloom/blur** — Tight blur (17-tap, 512×512) + wide blur (65-tap, 128×128) for phosphor glow simulation.
+3. **Phosphor persistence** — Temporal frame blending with exponential decay. Two-layer system: per-frame fade + afterglow.
+4. **Tone mapping & composition** — Combine line texture + bloom + persistence + overlay into final output.
+5. **Screen overlays** — Graticule, CRT texture, vector display overlay options.
+6. **Embed in egui** — Render wgpu output to a texture, display via `egui::TextureId` or `egui::PaintCallback`.
+7. **Re-add osci-visualizer dep** to osci-gui once the crate has a real API.
+
+**Integration points to consider:**
+- The vis buffer (`Arc<Mutex<VisBuffer>>`) already carries XY sample data from the audio thread — the visualizer will consume this same data
+- The current XY scope widget in `osci-gui/src/scope.rs` can coexist with or be replaced by the GPU visualizer
+- `wgpu` inside a nih-plug-egui context is the trickiest integration point — may need `egui::PaintCallback` with a wgpu render pass
+- The workspace already declares `wgpu = "24"` as a dependency
+
+---
+
 ## Key Technical Challenges & Mitigations
 
 | Challenge                              | Mitigation                                                                                                                                              |
