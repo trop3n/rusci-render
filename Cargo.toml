@@ -35,8 +35,9 @@ nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git" }
 # GUI
 egui = "0.31"
 
-# GPU rendering
-wgpu = "24"
+# GPU rendering (glow for OpenGL 3.3, matching nih-plug-egui backend)
+glow = "0.16"
+egui_glow = "0.31"
 
 # Lua scripting
 mlua = { version = "0.10", features = ["luajit", "send"] }
@@ -55,6 +56,9 @@ cosmic-text = "0.12"
 # Networking
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.26"
+
+# Native file dialogs
+rfd = "0.15"
 
 # Logging
 log = "0.4"

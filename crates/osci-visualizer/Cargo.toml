@@ -4,8 +4,5 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-osci-core = { workspace = true }
-wgpu = { workspace = true }
-glam = { workspace = true }
-serde = { workspace = true }
+glow = { workspace = true }
 log = { workspace = true }

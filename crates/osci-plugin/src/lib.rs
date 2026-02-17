@@ -1,9 +1,10 @@
 use nih_plug::prelude::*;
 use nih_plug_egui::{create_egui_editor, egui, EguiState};
 use osci_effects::registry::find_effect;
-use osci_gui::{EditorSharedState, EffectSnapshot, OsciPluginParamRefs, UiCommand, VisBuffer};
+use osci_gui::{AudioInfo, EditorSharedState, EffectSnapshot, GpuScopeState, MenuState, OsciPluginParamRefs, UiCommand, VisBuffer};
 use osci_parsers::default_shapes;
 use osci_synth::{MidiEvent, ShapeSound, Synthesizer, VoiceEffect};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 const VIS_BUFFER_SIZE: usize = 512;
@@ -25,6 +26,8 @@ pub struct OsciPlugin {
     command_tx: crossbeam::channel::Sender<UiCommand>,
     effect_snapshots: Arc<Mutex<Vec<EffectSnapshot>>>,
     vis_buffer: Arc<Mutex<VisBuffer>>,
+    current_project_path: Arc<Mutex<Option<PathBuf>>>,
+    audio_info: Arc<Mutex<AudioInfo>>,
 }
 
 #[derive(Params)]
@@ -120,6 +123,8 @@ impl Default for OsciPlugin {
             command_tx: tx,
             effect_snapshots: Arc::new(Mutex::new(Vec::new())),
             vis_buffer: Arc::new(Mutex::new(VisBuffer::default())),
+            current_project_path: Arc::new(Mutex::new(None)),
+            audio_info: Arc::new(Mutex::new(AudioInfo::default())),
         }
     }
 }
@@ -153,7 +158,11 @@ impl Plugin for OsciPlugin {
             command_tx: self.command_tx.clone(),
             effect_snapshots: self.effect_snapshots.clone(),
             vis_buffer: self.vis_buffer.clone(),
+            current_project_path: self.current_project_path.clone(),
+            audio_info: self.audio_info.clone(),
         };
+        let scope_state = Arc::new(Mutex::new(GpuScopeState::default()));
+        let menu_state = Mutex::new(MenuState::default());
 
         create_egui_editor(
             self.params.editor_state.clone(),
@@ -184,17 +193,18 @@ impl Plugin for OsciPlugin {
                     release: &params.release,
                 };
 
-                egui::CentralPanel::default().show(egui_ctx, |ui| {
-                    osci_gui::draw_editor(
-                        ui,
-                        &param_refs,
-                        setter,
-                        &shared,
-                        &snapshots,
-                        &vis,
-                        selected_effect_id,
-                    );
-                });
+                let scope = scope_state.clone();
+                osci_gui::draw_editor(
+                    egui_ctx,
+                    &param_refs,
+                    setter,
+                    &shared,
+                    &snapshots,
+                    &vis,
+                    selected_effect_id,
+                    scope,
+                    &mut menu_state.lock().unwrap(),
+                );
             },
         )
     }
@@ -207,6 +217,12 @@ impl Plugin for OsciPlugin {
     ) -> bool {
         self.sample_rate = buffer_config.sample_rate as f64;
         self.synth = Synthesizer::with_defaults(self.sample_rate);
+
+        // Publish audio info for the UI
+        if let Ok(mut info) = self.audio_info.lock() {
+            info.sample_rate = buffer_config.sample_rate;
+            info.buffer_size = buffer_config.max_buffer_size;
+        }
 
         // Load default shapes (unit square)
         self.sound = ShapeSound::new(4);
@@ -348,6 +364,25 @@ impl Plugin for OsciPlugin {
                             effects_changed = true;
                         }
                     }
+                }
+                UiCommand::LoadProject { effects } => {
+                    self.effect_template.clear();
+                    for loaded in effects {
+                        if let Some(entry) = find_effect(&loaded.id) {
+                            let mut effect = VoiceEffect::new(
+                                entry.id,
+                                (entry.constructor)(),
+                                loaded.parameters,
+                            );
+                            effect.enabled = loaded.enabled;
+                            self.effect_template.push(effect);
+                        }
+                    }
+                    effects_changed = true;
+                }
+                UiCommand::ClearProject => {
+                    self.effect_template.clear();
+                    effects_changed = true;
                 }
             }
         }

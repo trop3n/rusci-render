@@ -1,6 +1,15 @@
 use crossbeam::channel::Sender;
 use osci_core::{EffectParameter, LfoType};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+
+/// A serializable snapshot of one effect for project load.
+#[derive(Clone, Debug)]
+pub struct LoadedEffect {
+    pub id: String,
+    pub enabled: bool,
+    pub parameters: Vec<EffectParameter>,
+}
 
 /// Commands sent from the UI thread to the audio thread via a lock-free channel.
 pub enum UiCommand {
@@ -39,6 +48,12 @@ pub enum UiCommand {
         param_idx: usize,
         enabled: bool,
     },
+    /// Load a project: replace the entire effect chain with the given effects.
+    LoadProject {
+        effects: Vec<LoadedEffect>,
+    },
+    /// Clear the current project (remove all effects).
+    ClearProject,
 }
 
 /// A lightweight, UI-readable mirror of one effect in the chain.
@@ -48,6 +63,13 @@ pub struct EffectSnapshot {
     pub name: String,
     pub enabled: bool,
     pub parameters: Vec<EffectParameter>,
+}
+
+/// Audio device information for display in the UI.
+#[derive(Clone, Debug, Default)]
+pub struct AudioInfo {
+    pub sample_rate: f32,
+    pub buffer_size: u32,
 }
 
 /// Downsampled XY output buffer for the oscilloscope widget.
@@ -76,4 +98,6 @@ pub struct EditorSharedState {
     pub command_tx: Sender<UiCommand>,
     pub effect_snapshots: Arc<Mutex<Vec<EffectSnapshot>>>,
     pub vis_buffer: Arc<Mutex<VisBuffer>>,
+    pub current_project_path: Arc<Mutex<Option<PathBuf>>>,
+    pub audio_info: Arc<Mutex<AudioInfo>>,
 }
