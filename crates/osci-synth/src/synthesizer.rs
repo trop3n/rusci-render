@@ -1,5 +1,5 @@
 use crate::sound::ShapeSound;
-use crate::voice::ShapeVoice;
+use crate::voice::{ShapeVoice, VoiceEffect};
 use osci_core::envelope::Env;
 
 /// Maximum number of simultaneous voices.
@@ -82,6 +82,21 @@ impl Synthesizer {
     /// Get the number of currently active voices.
     pub fn active_voice_count(&self) -> usize {
         self.voices.iter().filter(|v| v.is_active()).count()
+    }
+
+    /// Get the total number of voice slots.
+    pub fn num_voices(&self) -> usize {
+        self.voices.len()
+    }
+
+    /// Sync an effect template to all voices.
+    ///
+    /// Each voice gets a fresh clone of every effect in the template,
+    /// with per-voice animation state reset to zeroes.
+    pub fn set_effect_template(&mut self, template: &[VoiceEffect]) {
+        for voice in &mut self.voices {
+            voice.effects = template.iter().map(|e| e.clone_voice_effect()).collect();
+        }
     }
 
     /// Process a MIDI event.

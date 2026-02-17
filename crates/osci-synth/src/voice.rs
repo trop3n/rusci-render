@@ -53,6 +53,21 @@ impl VoiceEffect {
     pub fn values(&self) -> &[f32] {
         &self.animated_values
     }
+
+    /// Create a fresh copy of this effect for another voice.
+    ///
+    /// Clones the effect application, parameters, and enabled state,
+    /// but resets per-voice animation state to zeroes.
+    pub fn clone_voice_effect(&self) -> Self {
+        Self {
+            id: self.id.clone(),
+            application: self.application.clone_effect(),
+            parameters: self.parameters.clone(),
+            enabled: self.enabled,
+            animated_values: vec![0.0; self.parameters.len()],
+            current_values: vec![0.0; self.parameters.len()],
+        }
+    }
 }
 
 /// A single synthesizer voice — renders shapes to audio samples.

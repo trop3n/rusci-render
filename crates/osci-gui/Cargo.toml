@@ -6,7 +6,8 @@ edition.workspace = true
 [dependencies]
 osci-core = { workspace = true }
 osci-effects = { workspace = true }
-osci-visualizer = { workspace = true }
-egui = { workspace = true }
+crossbeam = { workspace = true }
+nih_plug = { workspace = true }
+nih_plug_egui = { workspace = true }
 serde = { workspace = true }
 log = { workspace = true }

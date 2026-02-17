@@ -1,7 +1,12 @@
 use nih_plug::prelude::*;
+use nih_plug_egui::{create_egui_editor, egui, EguiState};
+use osci_effects::registry::find_effect;
+use osci_gui::{EditorSharedState, EffectSnapshot, OsciPluginParamRefs, UiCommand, VisBuffer};
 use osci_parsers::default_shapes;
-use osci_synth::{MidiEvent, ShapeSound, Synthesizer};
-use std::sync::Arc;
+use osci_synth::{MidiEvent, ShapeSound, Synthesizer, VoiceEffect};
+use std::sync::{Arc, Mutex};
+
+const VIS_BUFFER_SIZE: usize = 512;
 
 pub struct OsciPlugin {
     params: Arc<OsciParams>,
@@ -11,19 +16,43 @@ pub struct OsciPlugin {
     x_buf: Vec<f32>,
     y_buf: Vec<f32>,
     z_buf: Vec<f32>,
+
+    // Effect chain template — synced to all voices on change
+    effect_template: Vec<VoiceEffect>,
+
+    // UI ↔ Audio communication
+    command_rx: crossbeam::channel::Receiver<UiCommand>,
+    command_tx: crossbeam::channel::Sender<UiCommand>,
+    effect_snapshots: Arc<Mutex<Vec<EffectSnapshot>>>,
+    vis_buffer: Arc<Mutex<VisBuffer>>,
 }
 
 #[derive(Params)]
 struct OsciParams {
+    #[persist = "editor-state"]
+    editor_state: Arc<EguiState>,
+
     #[id = "volume"]
     volume: FloatParam,
     #[id = "frequency"]
     frequency: FloatParam,
+
+    // ADSR envelope
+    #[id = "attack"]
+    attack: FloatParam,
+    #[id = "decay"]
+    decay: FloatParam,
+    #[id = "sustain"]
+    sustain: FloatParam,
+    #[id = "release"]
+    release: FloatParam,
 }
 
 impl Default for OsciParams {
     fn default() -> Self {
         Self {
+            editor_state: EguiState::from_size(500, 700),
+
             volume: FloatParam::new("Volume", 1.0, FloatRange::Linear { min: 0.0, max: 3.0 }),
             frequency: FloatParam::new(
                 "Frequency",
@@ -35,12 +64,49 @@ impl Default for OsciParams {
                 },
             )
             .with_unit(" Hz"),
+
+            attack: FloatParam::new(
+                "Attack",
+                0.01,
+                FloatRange::Skewed {
+                    min: 0.001,
+                    max: 2.0,
+                    factor: FloatRange::skew_factor(-1.0),
+                },
+            )
+            .with_unit(" s"),
+            decay: FloatParam::new(
+                "Decay",
+                0.3,
+                FloatRange::Skewed {
+                    min: 0.001,
+                    max: 2.0,
+                    factor: FloatRange::skew_factor(-1.0),
+                },
+            )
+            .with_unit(" s"),
+            sustain: FloatParam::new(
+                "Sustain",
+                0.5,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            release: FloatParam::new(
+                "Release",
+                1.0,
+                FloatRange::Skewed {
+                    min: 0.001,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-1.0),
+                },
+            )
+            .with_unit(" s"),
         }
     }
 }
 
 impl Default for OsciPlugin {
     fn default() -> Self {
+        let (tx, rx) = crossbeam::channel::bounded(256);
         Self {
             params: Arc::new(OsciParams::default()),
             synth: Synthesizer::with_defaults(44100.0),
@@ -49,6 +115,11 @@ impl Default for OsciPlugin {
             x_buf: Vec::new(),
             y_buf: Vec::new(),
             z_buf: Vec::new(),
+            effect_template: Vec::new(),
+            command_rx: rx,
+            command_tx: tx,
+            effect_snapshots: Arc::new(Mutex::new(Vec::new())),
+            vis_buffer: Arc::new(Mutex::new(VisBuffer::default())),
         }
     }
 }
@@ -76,6 +147,58 @@ impl Plugin for OsciPlugin {
         self.params.clone()
     }
 
+    fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
+        let params = self.params.clone();
+        let shared = EditorSharedState {
+            command_tx: self.command_tx.clone(),
+            effect_snapshots: self.effect_snapshots.clone(),
+            vis_buffer: self.vis_buffer.clone(),
+        };
+
+        create_egui_editor(
+            self.params.editor_state.clone(),
+            String::new(), // selected_effect_id state
+            |_, _| {},
+            move |egui_ctx, setter, selected_effect_id| {
+                // Lock shared state for this frame
+                let snapshots = shared
+                    .effect_snapshots
+                    .lock()
+                    .map(|s| s.clone())
+                    .unwrap_or_default();
+                let vis = shared
+                    .vis_buffer
+                    .lock()
+                    .map(|v| VisBuffer {
+                        x: v.x.clone(),
+                        y: v.y.clone(),
+                    })
+                    .unwrap_or_default();
+
+                let param_refs = OsciPluginParamRefs {
+                    volume: &params.volume,
+                    frequency: &params.frequency,
+                    attack: &params.attack,
+                    decay: &params.decay,
+                    sustain: &params.sustain,
+                    release: &params.release,
+                };
+
+                egui::CentralPanel::default().show(egui_ctx, |ui| {
+                    osci_gui::draw_editor(
+                        ui,
+                        &param_refs,
+                        setter,
+                        &shared,
+                        &snapshots,
+                        &vis,
+                        selected_effect_id,
+                    );
+                });
+            },
+        )
+    }
+
     fn initialize(
         &mut self,
         _audio_io_layout: &AudioIOLayout,
@@ -97,6 +220,17 @@ impl Plugin for OsciPlugin {
         self.y_buf = vec![0.0; max_size];
         self.z_buf = vec![0.0; max_size];
 
+        // Reset effect template and shared state
+        self.effect_template.clear();
+        if let Ok(mut snaps) = self.effect_snapshots.lock() {
+            snaps.clear();
+        }
+
+        // Create fresh command channel
+        let (tx, rx) = crossbeam::channel::bounded(256);
+        self.command_tx = tx;
+        self.command_rx = rx;
+
         true
     }
 
@@ -116,6 +250,129 @@ impl Plugin for OsciPlugin {
         let volume = self.params.volume.smoothed.next();
         let frequency = self.params.frequency.smoothed.next();
         self.synth.set_default_frequency(frequency as f64);
+
+        // Build ADSR from param values
+        let attack = self.params.attack.smoothed.next() as f64;
+        let decay = self.params.decay.smoothed.next() as f64;
+        let sustain = self.params.sustain.smoothed.next() as f64;
+        let release = self.params.release.smoothed.next() as f64;
+        let adsr = osci_core::Env::adsr(attack, decay, sustain, release, 1.0, -4.0);
+        self.synth.set_adsr(adsr);
+
+        // Drain UI commands
+        let mut effects_changed = false;
+        while let Ok(cmd) = self.command_rx.try_recv() {
+            match cmd {
+                UiCommand::AddEffect(id) => {
+                    if let Some(entry) = find_effect(&id) {
+                        let effect = VoiceEffect::new(
+                            entry.id,
+                            (entry.constructor)(),
+                            (entry.parameters)(),
+                        );
+                        self.effect_template.push(effect);
+                        effects_changed = true;
+                    }
+                }
+                UiCommand::RemoveEffect(idx) => {
+                    if idx < self.effect_template.len() {
+                        self.effect_template.remove(idx);
+                        effects_changed = true;
+                    }
+                }
+                UiCommand::MoveEffect { from, to } => {
+                    let len = self.effect_template.len();
+                    if from < len && to < len && from != to {
+                        let effect = self.effect_template.remove(from);
+                        self.effect_template.insert(to, effect);
+                        effects_changed = true;
+                    }
+                }
+                UiCommand::SetEffectEnabled { idx, enabled } => {
+                    if let Some(e) = self.effect_template.get_mut(idx) {
+                        e.enabled = enabled;
+                        effects_changed = true;
+                    }
+                }
+                UiCommand::SetParamValue {
+                    effect_idx,
+                    param_idx,
+                    value,
+                } => {
+                    if let Some(e) = self.effect_template.get_mut(effect_idx) {
+                        if let Some(p) = e.parameters.get_mut(param_idx) {
+                            p.value = value;
+                            effects_changed = true;
+                        }
+                    }
+                }
+                UiCommand::SetLfo {
+                    effect_idx,
+                    param_idx,
+                    lfo_type,
+                    rate,
+                    start,
+                    end,
+                } => {
+                    if let Some(e) = self.effect_template.get_mut(effect_idx) {
+                        if let Some(p) = e.parameters.get_mut(param_idx) {
+                            p.lfo_type = lfo_type;
+                            p.lfo_rate = rate;
+                            p.lfo_start_percent = start;
+                            p.lfo_end_percent = end;
+                            p.lfo_enabled = !matches!(lfo_type, osci_core::LfoType::Static);
+                            effects_changed = true;
+                        }
+                    }
+                }
+                UiCommand::SetSmoothing {
+                    effect_idx,
+                    param_idx,
+                    value,
+                } => {
+                    if let Some(e) = self.effect_template.get_mut(effect_idx) {
+                        if let Some(p) = e.parameters.get_mut(param_idx) {
+                            p.smooth_value_change = value;
+                            effects_changed = true;
+                        }
+                    }
+                }
+                UiCommand::SetSidechain {
+                    effect_idx,
+                    param_idx,
+                    enabled,
+                } => {
+                    if let Some(e) = self.effect_template.get_mut(effect_idx) {
+                        if let Some(p) = e.parameters.get_mut(param_idx) {
+                            p.sidechain_enabled = enabled;
+                            effects_changed = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Sync effect template to all voices if anything changed
+        if effects_changed {
+            self.synth.set_effect_template(&self.effect_template);
+
+            // Publish updated snapshots for the UI
+            let snapshots: Vec<EffectSnapshot> = self
+                .effect_template
+                .iter()
+                .map(|e| EffectSnapshot {
+                    id: e.id.clone(),
+                    name: find_effect(&e.id)
+                        .map(|entry| entry.name.to_string())
+                        .unwrap_or_else(|| e.id.clone()),
+                    enabled: e.enabled,
+                    parameters: e.parameters.clone(),
+                })
+                .collect();
+            if let Ok(mut snaps) = self.effect_snapshots.lock() {
+                *snaps = snapshots;
+            }
+        }
 
         // Drain all MIDI events (block-level processing)
         while let Some(event) = context.next_event() {
@@ -145,11 +402,22 @@ impl Plugin for OsciPlugin {
             &mut self.sound,
         );
 
-        // Copy to output: X → Left, Y → Right, apply volume
+        // Copy to output: X -> Left, Y -> Right, apply volume
         let output = buffer.as_slice();
         for i in 0..num_samples {
             output[0][i] = self.x_buf[i] * volume;
             output[1][i] = self.y_buf[i] * volume;
+        }
+
+        // Update vis buffer with the last VIS_BUFFER_SIZE samples
+        if let Ok(mut vis) = self.vis_buffer.lock() {
+            let copy_len = num_samples.min(VIS_BUFFER_SIZE);
+            let src_start = num_samples.saturating_sub(VIS_BUFFER_SIZE);
+
+            vis.x.clear();
+            vis.y.clear();
+            vis.x.extend_from_slice(&self.x_buf[src_start..src_start + copy_len]);
+            vis.y.extend_from_slice(&self.y_buf[src_start..src_start + copy_len]);
         }
 
         ProcessStatus::Normal
