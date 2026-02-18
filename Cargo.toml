@@ -42,7 +42,7 @@ glow = "0.16"
 egui_glow = "0.31"
 
 # Lua scripting
-mlua = { version = "0.10", features = ["luajit", "send"] }
+mlua = { version = "0.10", features = ["lua54", "vendored", "send"] }
 
 # File format parsing
 usvg = "0.44"
