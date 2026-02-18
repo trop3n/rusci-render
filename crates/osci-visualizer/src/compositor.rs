@@ -19,6 +19,8 @@ pub struct Compositor {
     loc_ambient: glow::UniformLocation,
     loc_noise: glow::UniformLocation,
     loc_time: glow::UniformLocation,
+    loc_reflection_mode: glow::UniformLocation,
+    loc_goniometer: glow::UniformLocation,
     frame_count: u32,
 }
 
@@ -42,6 +44,8 @@ impl Compositor {
                 loc_ambient: loc("u_ambient"),
                 loc_noise: loc("u_noise"),
                 loc_time: loc("u_time"),
+                loc_reflection_mode: loc("u_reflection_mode"),
+                loc_goniometer: loc("u_goniometer"),
                 frame_count: 0,
             }
         }
@@ -86,6 +90,8 @@ impl Compositor {
             gl.uniform_1_f32(Some(&self.loc_ambient), settings.ambient);
             gl.uniform_1_f32(Some(&self.loc_noise), settings.noise);
             gl.uniform_1_f32(Some(&self.loc_time), self.frame_count as f32 * 0.0167);
+            gl.uniform_1_i32(Some(&self.loc_reflection_mode), settings.reflection_mode as i32);
+            gl.uniform_1_i32(Some(&self.loc_goniometer), if settings.goniometer { 1 } else { 0 });
 
             quad.draw(gl);
 

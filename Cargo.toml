@@ -56,12 +56,16 @@ cosmic-text = "0.12"
 # Networking
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.26"
+futures-util = "0.3"
 
 # Native file dialogs
 rfd = "0.15"
 
 # Logging
 log = "0.4"
+
+# Benchmarking
+criterion = { version = "0.5", features = ["html_reports"] }
 
 # Internal crates
 osci-core = { path = "crates/osci-core" }

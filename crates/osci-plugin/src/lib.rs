@@ -21,6 +21,9 @@ pub struct OsciPlugin {
     // Effect chain template — synced to all voices on change
     effect_template: Vec<VoiceEffect>,
 
+    // Networking
+    net_server: Option<osci_net::NetServer>,
+
     // UI ↔ Audio communication
     command_rx: crossbeam::channel::Receiver<UiCommand>,
     command_tx: crossbeam::channel::Sender<UiCommand>,
@@ -119,6 +122,7 @@ impl Default for OsciPlugin {
             y_buf: Vec::new(),
             z_buf: Vec::new(),
             effect_template: Vec::new(),
+            net_server: None,
             command_rx: rx,
             command_tx: tx,
             effect_snapshots: Arc::new(Mutex::new(Vec::new())),
@@ -246,6 +250,11 @@ impl Plugin for OsciPlugin {
         let (tx, rx) = crossbeam::channel::bounded(256);
         self.command_tx = tx;
         self.command_rx = rx;
+
+        // Start network servers
+        let frame_tx = self.sound.sender();
+        let sink = osci_net::FrameSink::new(frame_tx);
+        self.net_server = Some(osci_net::NetServer::start(osci_net::NetConfig::default(), sink));
 
         true
     }
@@ -383,6 +392,9 @@ impl Plugin for OsciPlugin {
                 UiCommand::ClearProject => {
                     self.effect_template.clear();
                     effects_changed = true;
+                }
+                UiCommand::StartRecording { .. } | UiCommand::StopRecording => {
+                    // Recording commands are handled on the UI/render thread
                 }
             }
         }

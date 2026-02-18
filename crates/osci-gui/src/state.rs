@@ -54,6 +54,15 @@ pub enum UiCommand {
     },
     /// Clear the current project (remove all effects).
     ClearProject,
+    /// Start video recording with the given output path and dimensions.
+    StartRecording {
+        path: PathBuf,
+        width: u32,
+        height: u32,
+        fps: u32,
+    },
+    /// Stop video recording.
+    StopRecording,
 }
 
 /// A lightweight, UI-readable mirror of one effect in the chain.

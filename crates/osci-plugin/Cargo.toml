@@ -12,6 +12,7 @@ osci-effects = { workspace = true }
 osci-synth = { workspace = true }
 osci-parsers = { workspace = true }
 osci-gui = { workspace = true }
+osci-net = { workspace = true }
 nih_plug = { workspace = true }
 nih_plug_egui = { workspace = true }
 crossbeam = { workspace = true }

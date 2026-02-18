@@ -6,3 +6,8 @@ edition.workspace = true
 [dependencies]
 glow = { workspace = true }
 log = { workspace = true }
+ffmpeg-next = { version = "7", optional = true }
+
+[features]
+default = []
+video = ["ffmpeg-next"]

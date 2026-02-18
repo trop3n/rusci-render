@@ -8,6 +8,13 @@ osci-core = { workspace = true }
 glam = { workspace = true }
 mlua = { workspace = true, optional = true }
 
+[dev-dependencies]
+criterion = { workspace = true }
+
 [features]
 default = ["lua"]
 lua = ["dep:mlua"]
+
+[[bench]]
+name = "effect_bench"
+harness = false

@@ -25,6 +25,12 @@ pub struct VisualiserSettings {
     pub ambient: f32,
     /// Noise grain amount. Range: 0.0..0.05
     pub noise: f32,
+    /// Afterglow tint color [r, g, b]. Range: 0.0..1.0 each
+    pub afterglow_color: [f32; 3],
+    /// Reflection mode: 0=off, 1=horizontal mirror, 2=vertical mirror, 3=quad
+    pub reflection_mode: u32,
+    /// Goniometer mode: Mid/Side 45 degree rotation
+    pub goniometer: bool,
 }
 
 impl Default for VisualiserSettings {
@@ -42,6 +48,9 @@ impl Default for VisualiserSettings {
             saturation: 1.0,
             ambient: 0.02,
             noise: 0.01,
+            afterglow_color: [0.2, 1.0, 0.3],
+            reflection_mode: 0,
+            goniometer: false,
         }
     }
 }

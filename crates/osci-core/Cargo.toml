@@ -6,3 +6,10 @@ edition.workspace = true
 [dependencies]
 glam = { workspace = true }
 serde = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "shape_bench"
+harness = false

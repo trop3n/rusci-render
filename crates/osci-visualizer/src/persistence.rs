@@ -14,6 +14,8 @@ pub struct PersistencePass {
     loc_current: glow::UniformLocation,
     loc_previous: glow::UniformLocation,
     loc_fade: glow::UniformLocation,
+    loc_afterglow_color: glow::UniformLocation,
+    loc_afterglow: glow::UniformLocation,
 }
 
 impl PersistencePass {
@@ -23,6 +25,8 @@ impl PersistencePass {
         let loc_current = unsafe { gl.get_uniform_location(program, "u_current").expect("u_current") };
         let loc_previous = unsafe { gl.get_uniform_location(program, "u_previous").expect("u_previous") };
         let loc_fade = unsafe { gl.get_uniform_location(program, "u_fade").expect("u_fade") };
+        let loc_afterglow_color = unsafe { gl.get_uniform_location(program, "u_afterglow_color").expect("u_afterglow_color") };
+        let loc_afterglow = unsafe { gl.get_uniform_location(program, "u_afterglow").expect("u_afterglow") };
 
         Self {
             program,
@@ -35,6 +39,8 @@ impl PersistencePass {
             loc_current,
             loc_previous,
             loc_fade,
+            loc_afterglow_color,
+            loc_afterglow,
         }
     }
 
@@ -45,6 +51,8 @@ impl PersistencePass {
         gl: &glow::Context,
         line_texture: glow::Texture,
         persistence: f32,
+        afterglow: f32,
+        afterglow_color: &[f32; 3],
         quad: &FullscreenQuad,
     ) -> glow::Texture {
         let now = Instant::now();
@@ -79,6 +87,13 @@ impl PersistencePass {
             gl.uniform_1_i32(Some(&self.loc_previous), 1);
 
             gl.uniform_1_f32(Some(&self.loc_fade), fade);
+            gl.uniform_3_f32(
+                Some(&self.loc_afterglow_color),
+                afterglow_color[0],
+                afterglow_color[1],
+                afterglow_color[2],
+            );
+            gl.uniform_1_f32(Some(&self.loc_afterglow), afterglow);
 
             quad.draw(gl);
 

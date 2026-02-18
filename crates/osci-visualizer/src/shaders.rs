@@ -150,13 +150,17 @@ in vec2 v_uv;
 uniform sampler2D u_current;
 uniform sampler2D u_previous;
 uniform float u_fade;  // decay factor per frame
+uniform vec3 u_afterglow_color;
+uniform float u_afterglow;
 
 out vec4 frag_color;
 
 void main() {
     vec4 cur = texture(u_current, v_uv);
     vec4 prev = texture(u_previous, v_uv);
-    frag_color = cur + prev * u_fade;
+    vec3 tint = mix(vec3(1.0), u_afterglow_color, u_afterglow);
+    vec3 faded = prev.rgb * u_fade * tint;
+    frag_color = vec4(cur.rgb + faded, 1.0);
 }
 "#;
 
@@ -179,6 +183,8 @@ uniform float u_saturation;
 uniform float u_ambient;
 uniform float u_noise;
 uniform float u_time;
+uniform int u_reflection_mode;
+uniform bool u_goniometer;
 
 out vec4 frag_color;
 
@@ -190,9 +196,34 @@ float hash(vec2 p) {
 }
 
 void main() {
-    float line_val = texture(u_persisted, v_uv).r;
-    float tight = texture(u_tight_blur, v_uv).r;
-    float wide = texture(u_wide_blur, v_uv).r;
+    vec2 uv = v_uv;
+
+    // Goniometer: 45 degree rotation around center (Mid/Side display)
+    if (u_goniometer) {
+        vec2 centered = uv - 0.5;
+        float cos45 = 0.70710678;
+        float sin45 = 0.70710678;
+        uv = vec2(
+            centered.x * cos45 - centered.y * sin45,
+            centered.x * sin45 + centered.y * cos45
+        ) + 0.5;
+    }
+
+    // Reflection modes
+    if (u_reflection_mode == 1) {
+        // Horizontal mirror
+        uv.x = abs(uv.x - 0.5) + 0.5;
+    } else if (u_reflection_mode == 2) {
+        // Vertical mirror
+        uv.y = abs(uv.y - 0.5) + 0.5;
+    } else if (u_reflection_mode == 3) {
+        // Quad mirror
+        uv = abs(uv - 0.5) + 0.5;
+    }
+
+    float line_val = texture(u_persisted, uv).r;
+    float tight = texture(u_tight_blur, uv).r;
+    float wide = texture(u_wide_blur, uv).r;
 
     // Combine line + bloom
     float bloom = u_glow_amount * (tight + u_scatter_amount * wide);

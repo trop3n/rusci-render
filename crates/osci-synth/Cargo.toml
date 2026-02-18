@@ -12,3 +12,8 @@ log = { workspace = true }
 
 [dev-dependencies]
 osci-parsers = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "synth_bench"
+harness = false

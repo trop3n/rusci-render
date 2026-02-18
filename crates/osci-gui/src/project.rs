@@ -47,6 +47,12 @@ pub struct VisualizerSnapshot {
     pub saturation: f32,
     pub ambient: f32,
     pub noise: f32,
+    #[serde(default)]
+    pub afterglow_color: Option<[f32; 3]>,
+    #[serde(default)]
+    pub reflection_mode: Option<u32>,
+    #[serde(default)]
+    pub goniometer: Option<bool>,
 }
 
 /// Save a project file to disk as JSON.

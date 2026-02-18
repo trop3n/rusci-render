@@ -177,6 +177,8 @@ impl OsciRenderer {
                 gl,
                 self.line_fbo.texture,
                 settings.persistence,
+                settings.afterglow,
+                &settings.afterglow_color,
                 &self.quad,
             );
 
@@ -193,6 +195,31 @@ impl OsciRenderer {
             // 7. Restore all GL state
             saved.restore(gl);
         }
+    }
+
+    /// Read pixels from the currently bound FBO. Returns RGBA8 data, flipped vertically.
+    pub fn capture_frame(&self, gl: &glow::Context, width: u32, height: u32) -> Vec<u8> {
+        let mut pixels = vec![0u8; (width * height * 4) as usize];
+        unsafe {
+            gl.read_pixels(
+                0,
+                0,
+                width as i32,
+                height as i32,
+                glow::RGBA,
+                glow::UNSIGNED_BYTE,
+                glow::PixelPackData::Slice(Some(&mut pixels)),
+            );
+        }
+        // Flip vertically (OpenGL origin is bottom-left)
+        let row_bytes = (width * 4) as usize;
+        let mut flipped = vec![0u8; pixels.len()];
+        for y in 0..height as usize {
+            let src_row = y * row_bytes;
+            let dst_row = (height as usize - 1 - y) * row_bytes;
+            flipped[dst_row..dst_row + row_bytes].copy_from_slice(&pixels[src_row..src_row + row_bytes]);
+        }
+        flipped
     }
 
     pub fn destroy(&self, gl: &glow::Context) {
