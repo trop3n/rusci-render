@@ -3851,6 +3851,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusci"
+version = "0.1.0"
+dependencies = [
+ "egui_glow",
+ "glow",
+ "log",
+ "nih_plug",
+ "nih_plug_egui",
+ "osci-gui",
+ "osci-visualizer",
+]
+
+[[package]]
+name = "rusci-standalone"
+version = "0.1.0"
+dependencies = [
+ "nih_plug",
+ "rusci",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"

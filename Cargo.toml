@@ -10,6 +10,8 @@ members = [
     "crates/osci-plugin",
     "crates/osci-standalone",
     "crates/osci-net",
+    "crates/rusci",
+    "crates/rusci-standalone",
 ]
 
 [workspace.package]

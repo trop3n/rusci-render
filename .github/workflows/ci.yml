@@ -33,7 +33,7 @@ jobs:
         run: cargo clippy --workspace
 
       - name: Test
-        run: cargo test --workspace --exclude osci-standalone
+        run: cargo test --workspace --exclude osci-standalone --exclude rusci-standalone
 
   build-linux:
     name: Build (Linux)

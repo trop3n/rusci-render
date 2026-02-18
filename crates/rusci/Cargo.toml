@@ -1,0 +1,16 @@
+[package]
+name = "rusci"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+osci-visualizer = { workspace = true }
+osci-gui = { workspace = true }
+nih_plug = { workspace = true }
+nih_plug_egui = { workspace = true }
+egui_glow = { workspace = true }
+glow = { workspace = true }
+log = { workspace = true }

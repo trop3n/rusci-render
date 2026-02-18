@@ -1,0 +1,12 @@
+[package]
+name = "rusci-standalone"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "rusci"
+path = "src/main.rs"
+
+[dependencies]
+rusci = { path = "../rusci" }
+nih_plug = { workspace = true, features = ["standalone"] }
