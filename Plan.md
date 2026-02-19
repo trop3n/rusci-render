@@ -538,62 +538,189 @@ Audio Samples (X, Y, [Z])
 
 ## Phase Completion Status
 
-### Phase 1: Core Engine — COMPLETE
-All core types implemented in `osci-core`: Point (6-field: x/y/z/r/g/b), Shape (Line, CubicBezier, QuadraticBezier, CircleArc), Frame, EffectApplication trait, EffectParameter with full LFO/smoothing/sidechain, Env (ADSR with curve interpolation), LfoState. 27 unit tests passing.
+> **NOTE (updated 2026-02-18):** Phase statuses below reflect honest end-to-end reality, not just build/test status. "COMPLETE" now means the feature works when you run the application. See `CLAUDE.md` for a full breakdown of what is and isn't working.
 
-### Phase 2: File Parsers — COMPLETE
-All parsers in `osci-parsers`: SVG (usvg+lyon), OBJ (tobj edge extraction), text (cosmic-text glyph outlines), image (threshold scan), GIF (animated frames), GPLA (line art binary/JSON), audio (symphonia). Chinese Postman not yet implemented (deferred). 49 tests passing.
+### Phase 1: Core Engine — COMPLETE ✓
+All core types in `osci-core`: Point, Shape (Line/CubicBezier/QuadraticBezier/CircleArc), Frame, EffectApplication trait, EffectParameter (LFO/smoothing/sidechain), Env (ADSR), LfoState. Unit tested and confirmed correct against reference math.
 
-### Phase 3: Plugin Shell — COMPLETE
-`osci-plugin` builds as VST3/CLAP via nih-plug. `osci-synth` provides 16-voice polyphonic synthesizer with per-voice effect chains, ADSR envelopes, shape rendering, voice stealing. `osci-effects` has all 27 effects with registry pattern. 25 synth+effect tests passing.
+### Phase 2: File Parsers — COMPLETE ✓
+All parsers in `osci-parsers`: SVG (usvg+lyon), OBJ (tobj), text (cosmic-text), image (threshold scan), GIF, GPLA, audio (symphonia), Lua (mlua/Lua 5.4). Chinese Postman deferred. Unit tested. **Caveat: parsers work in isolation but there is no UI to invoke them yet.**
 
-### Phase 4: egui Plugin Editor — COMPLETE
-Full egui editor integrated via `nih_plug_egui`. Implementation:
+### Phase 3: Plugin Shell — COMPLETE ✓
+`osci-plugin` builds as VST3/CLAP. 16-voice polyphonic synthesizer with per-voice effect chains, ADSR, shape rendering, voice stealing. All 27 effects with registry. Unit tested. **Caveat: the plugin produces no audio in standalone without a MIDI keyboard connected.**
 
-**Architecture:**
-- **UI → Audio (params):** nih-plug `FloatParam` for volume, frequency, ADSR (attack/decay/sustain/release) — DAW-automatable
-- **UI → Audio (effects):** `crossbeam::channel::bounded(256)` carrying `UiCommand` enums — lock-free, drained at start of `process()`
-- **Audio → UI (visualization):** `Arc<Mutex<VisBuffer>>` — audio writes last 512 samples per block, UI reads per frame
-- **Effect template:** Audio thread maintains `effect_template: Vec<VoiceEffect>`, syncs to all 16 voice slots via `set_effect_template()` on change
+### Phase 4: GUI Editor — PARTIAL ⚠
+egui editor integrated via `nih_plug_egui`. What was built:
+- Synth controls: Volume, Frequency, Attack, Decay, Sustain, Release (ParamSlider widgets)
+- Effect chain: add/remove/reorder, per-param sliders, LFO config, smoothing, sidechain
+- GPU oscilloscope scope widget (glow/OpenGL, 300px square)
+- Menu bar: File → New/Open/Save/Save As, keyboard shortcuts
+- Project save/load (JSON, includes visualizer settings)
 
-**Files created/modified:**
-- `osci-synth/src/voice.rs` — `VoiceEffect::clone_voice_effect()` for deep-copying effects to voices
-- `osci-synth/src/synthesizer.rs` — `set_effect_template()` and `num_voices()`
-- `osci-gui/src/state.rs` — `UiCommand` (8 variants), `EffectSnapshot`, `VisBuffer`, `EditorSharedState`
-- `osci-gui/src/scope.rs` — XY Lissajous oscilloscope (green lines on black, egui::Painter)
-- `osci-gui/src/effect_panel.rs` — Full effect chain UI: add/remove/reorder, per-param sliders with LFO type/rate/range, smoothing, sidechain. Registry cached via `OnceLock`
-- `osci-gui/src/lib.rs` — `draw_editor()` layout: Synth Controls → Effect Chain → XY Scope
-- `osci-plugin/src/lib.rs` — Complete rewrite: `OsciParams` with ADSR, `editor()` via `create_egui_editor`, `process()` drains command channel, builds ADSR from params, syncs effect template, updates vis buffer
+**What was planned but never built:**
+- `file_controls.rs` — file picker and format selector (MISSING — app cannot load files)
+- `lua_panel.rs` — 26 A–Z sliders for Lua scripts (MISSING)
+- `code_editor.rs` — in-app Lua/SVG text editor (MISSING)
+- `visualizer_panel.rs` — full-size visualizer as main panel (MISSING)
+- `visualizer_settings.rs` — runtime controls for scope display (MISSING)
+- `midi_panel.rs` — MIDI keyboard widget and visual ADSR editor (MISSING)
+- `recording_panel.rs` — video recording controls (MISSING)
+- `timeline.rs` — animation/audio scrubber (MISSING)
 
-**Key details for next session:**
-- `osci-gui` does NOT depend on `egui` directly — it uses `nih_plug_egui::egui` (v0.31.1) to avoid version conflicts. The workspace `egui` dep was bumped to `"0.31"` to match.
-- `osci-gui` no longer depends on `osci-visualizer` (removed in Phase 4, will be re-added in Phase 5 when wgpu is ready)
-- The `editor()` method uses `egui::CentralPanel` inside the update closure (not `ResizableWindow`)
-- `OsciPluginParamRefs` is a struct of `&FloatParam` references passed into `draw_editor()` to decouple the GUI crate from the plugin's Params derive
-- Effect snapshots are published from the audio thread whenever any `UiCommand` modifies the template — the UI clones them each frame via `Arc<Mutex>`
-- System deps required: `libgl-dev libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libxkbcommon-dev libx11-xcb-dev`
+### Phase 5: Visualizer — PARTIAL ⚠
+`osci-visualizer` was built using **glow (OpenGL 3.3)** instead of the planned wgpu. The plan was wrong — wgpu inside nih-plug-egui was impractical. The glow implementation includes: Gaussian beam line renderer, bloom (tight + wide), phosphor persistence, afterglow, tone mapping, reflection modes, goniometer. It is embedded in the editor as a small scope widget via `egui_glow::CallbackFn`. **The visualizer settings panel was never added to the UI.**
 
-**Build status:** Clean (no warnings in osci-gui or osci-plugin). All 91 existing tests pass.
+### Phase 6: Standalone App — PARTIAL ⚠
+`osci-standalone/src/main.rs` is a one-liner (`nih_export_standalone::<OsciPlugin>()`). nih-plug's built-in standalone runner handles audio/MIDI device selection. The planned custom winit window, device selection UI, and `audio_io.rs` were never built — not strictly necessary given nih-plug's standalone support, but the experience is minimal.
 
-### Phase 5: Visualizer — NEXT
+### Phase 7: Networking — PARTIAL ⚠
+`osci-net` has a working WebSocket server that receives frames and feeds them into the synthesizer. Basic functionality works. Spout/Syphon, Blender integration, and video encoding (ffmpeg) were never implemented.
 
-**What needs to happen:**
-The `osci-visualizer` crate exists but is stubbed. Phase 5 implements the wgpu GPU rendering pipeline and embeds it in the egui editor.
+### Phase 8: Polish — NOT DONE ✗
+- Dracula theme: ✓ applied
+- Fira Code font: ✓ applied
+- Bundled example files: ✓ present in assets/
+- CI/CD: ✓ basic pipeline exists
+- Preset compatibility with original osci-render .osci files: ✗ not done
+- Cross-platform testing: ✗ Windows builds fail (fixed LuaJIT → Lua 5.4 in current session)
+- Performance profiling: ✗ not done
 
-**Key tasks:**
-1. **wgpu line renderer** — Gaussian beam rendering (port from GLSL to WGSL). Each line segment becomes a 4-vertex quad with analytical erf()-based brightness falloff.
-2. **Multi-pass bloom/blur** — Tight blur (17-tap, 512×512) + wide blur (65-tap, 128×128) for phosphor glow simulation.
-3. **Phosphor persistence** — Temporal frame blending with exponential decay. Two-layer system: per-frame fade + afterglow.
-4. **Tone mapping & composition** — Combine line texture + bloom + persistence + overlay into final output.
-5. **Screen overlays** — Graticule, CRT texture, vector display overlay options.
-6. **Embed in egui** — Render wgpu output to a texture, display via `egui::TextureId` or `egui::PaintCallback`.
-7. **Re-add osci-visualizer dep** to osci-gui once the crate has a real API.
+---
 
-**Integration points to consider:**
-- The vis buffer (`Arc<Mutex<VisBuffer>>`) already carries XY sample data from the audio thread — the visualizer will consume this same data
-- The current XY scope widget in `osci-gui/src/scope.rs` can coexist with or be replaced by the GPU visualizer
-- `wgpu` inside a nih-plug-egui context is the trickiest integration point — may need `egui::PaintCallback` with a wgpu render pass
-- The workspace already declares `wgpu = "24"` as a dependency
+## Phase 9: Completion Plan
+
+This phase makes the application actually usable. Tasks are ordered by impact.
+
+### 9.1 — Drone Mode (Sound without MIDI) 🔴 CRITICAL
+
+**Problem:** The synthesizer requires MIDI NoteOn events. No MIDI = no sound.
+
+**What to build:**
+- Add `UiCommand::SetDroneEnabled(bool)` to `osci-gui/src/state.rs`
+- Add `drone_active: bool` field to `OsciPlugin` in `osci-plugin/src/lib.rs`
+- In `process()`: when `drone_active` is true and no voices are active, call `synth.handle_midi_event(MidiEvent::NoteOn { note: 69, velocity: 1.0 }, &mut self.sound)` and set `midi_enabled = false` on the synth so it uses `default_frequency`
+- Add `Synthesizer::set_midi_enabled(bool)` to `osci-synth/src/synthesizer.rs`
+- Add a "Drone" toggle checkbox to the synth controls panel in `osci-gui/src/lib.rs`
+
+**Verification:** Run standalone, enable Drone, move the Frequency slider, hear a continuous tone.
+
+### 9.2 — File Loading UI 🔴 CRITICAL
+
+**Problem:** All parsers exist but there is no way to load a file from the UI.
+
+**What to build:** `osci-gui/src/file_controls.rs`
+- A row with: `[Open File]` button (rfd file dialog) + current filename display
+- Supported extensions: `.svg`, `.obj`, `.txt`, `.lua`, `.gpla`, `.gif`, `.png`, `.jpg`, `.wav`, `.aiff`, `.flac`, `.ogg`, `.mp3`
+- When a file is picked, parse it with `osci_parsers::parse_file()` on a background thread, send resulting `Vec<Box<dyn Shape>>` frames to `self.sound.sender()`
+- Add `UiCommand::LoadFile(PathBuf)` so the audio thread can trigger re-parsing on loop
+- Wire into `draw_editor()` above the synth controls
+
+**Verification:** Open an SVG file, enable Drone, hear a shape being drawn.
+
+### 9.3 — Visualizer Settings Panel 🟠 HIGH
+
+**Problem:** `VisualiserSettings` (focus, intensity, persistence, glow, color, exposure, etc.) has no runtime UI. You can only change these by loading a project file.
+
+**What to build:** `osci-gui/src/visualizer_settings.rs`
+- Collapsible panel ("Scope Settings") below the scope widget in `draw_editor()`
+- Sliders for each `VisualiserSettings` field, using the documented ranges from `osci-visualizer/src/settings.rs`
+- Edits go directly into the `GpuScopeState.settings` (already `Arc<Mutex<GpuScopeState>>`)
+- No audio thread communication needed — the scope reads settings each paint callback
+
+**Verification:** Drag the Focus slider, see the beam width change in real time.
+
+### 9.4 — Lua Slider Panel 🟠 HIGH
+
+**Problem:** Lua scripts can reference `slider_a` through `slider_z`, but these globals are always 0.0 because there's no UI to set them.
+
+**What to build:** `osci-gui/src/lua_panel.rs`
+- 26 sliders labeled A–Z, range 0.0–1.0
+- Send values to audio thread via `UiCommand::SetLuaSlider { index: usize, value: f32 }`
+- Audio thread stores `lua_sliders: [f32; 26]` and passes them into `LuaVariables` when running Lua parsers
+- Shown in a collapsible panel, only visible when a .lua file is loaded
+
+**Verification:** Load a Lua script that uses `slider_a`, move the slider, see the shape change.
+
+### 9.5 — Resize and Reflow the Layout 🟡 MEDIUM
+
+**Problem:** The visualizer is a 300px square at the bottom of a vertical scroll area. The app should have the scope as the main view, not an afterthought.
+
+**Target layout:**
+```
+┌─────────────────────────────────────────┐
+│ Menu bar                                │
+├─────────────────┬───────────────────────┤
+│ Left panel      │ GPU Scope (fills      │
+│ - File controls │   remaining space)    │
+│ - Synth ADSR    │                       │
+│ - Effect chain  ├───────────────────────┤
+│ - Lua sliders   │ Scope Settings        │
+│                 │ (collapsible)         │
+└─────────────────┴───────────────────────┘
+```
+Use `egui::SidePanel::left` + `egui::CentralPanel` instead of a single `CentralPanel` with a `ScrollArea`.
+
+**Verification:** Resize the window, scope fills available space.
+
+### 9.6 — Code Editor for Lua/SVG 🟡 MEDIUM
+
+**What to build:** `osci-gui/src/code_editor.rs`
+- A simple multi-line text editor (egui's `TextEdit::multiline`) in a bottom panel or tab
+- "Apply" button re-parses the text as Lua or SVG and reloads the shape
+- Visible only when a Lua or SVG file is loaded
+
+### 9.7 — Recording Panel 🟡 MEDIUM
+
+**What to build:** `osci-gui/src/recording_panel.rs`
+- "Record" / "Stop" buttons that send `UiCommand::StartRecording` / `UiCommand::StopRecording`
+- Output path picker (rfd)
+- Width/Height/FPS selectors
+- `UiCommand::StartRecording` is already defined in `state.rs`; the visualizer's `recorder.rs` exists but needs to be wired to the paint callback
+
+### 9.8 — DAW Plugin Testing 🟡 MEDIUM
+
+Load the built VST3 into Reaper or Ableton:
+- Verify MIDI NoteOn → voice starts → audio output
+- Verify parameter automation (Volume, Frequency, ADSR sliders)
+- Verify project save/load round-trips correctly
+- Verify effect chain syncs to all voices
+
+### 9.9 — Chinese Postman Path Optimizer 🟢 LOW
+
+Deferred from Phase 2. Implements minimum-weight Euler path for shape traversal — reduces "blank" travel time between disconnected shapes. Not critical for correctness, improves output quality.
+
+### 9.10 — Preset Compatibility 🟢 LOW
+
+Import `.osci-project` files from the original Java/JUCE osci-render. Requires mapping the original XML/JSON schema to `ProjectFile`.
+
+### 9.11 — Spout / Syphon 🟢 LOW
+
+Shared texture output for real-time video routing to OBS/MadMapper. Platform-specific FFI. Windows-only for Spout, macOS-only for Syphon. Defer until all other items are done.
+
+---
+
+## Actual osci-gui File Structure (as of 2026-02-18)
+
+```
+osci-gui/src/
+  lib.rs            ✓ draw_editor() — synth controls, effect chain, scope
+  state.rs          ✓ UiCommand, EffectSnapshot, VisBuffer, EditorSharedState
+  effect_panel.rs   ✓ draw_effect_chain() — full effect chain UI
+  scope.rs          ✓ draw_gpu_scope() — glow paint callback
+  menu_bar.rs       ✓ draw_menu_bar() — File menu
+  dialogs.rs        ✓ About, Audio Info, Keyboard Shortcuts dialogs
+  project.rs        ✓ ProjectFile, save_project(), load_project()
+  theme.rs          ✓ Dracula theme + Fira Code font
+
+  file_controls.rs  ✗ MISSING — file picker and format selector
+  lua_panel.rs      ✗ MISSING — A-Z sliders
+  code_editor.rs    ✗ MISSING — Lua/SVG text editor
+  visualizer_panel.rs ✗ MISSING — full-size visualizer as main view
+  visualizer_settings.rs ✗ MISSING — scope display controls
+  midi_panel.rs     ✗ MISSING — MIDI keyboard widget, ADSR curve editor
+  recording_panel.rs ✗ MISSING — video recording controls
+  timeline.rs       ✗ MISSING — animation/audio scrubber
+```
 
 ---
 

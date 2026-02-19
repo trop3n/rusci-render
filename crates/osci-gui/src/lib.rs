@@ -263,6 +263,7 @@ pub fn draw_editor(
     effect_snapshots: &[EffectSnapshot],
     vis: &VisBuffer,
     selected_effect_id: &mut String,
+    drone_active: &mut bool,
     scope_state: Arc<Mutex<GpuScopeState>>,
     menu_state: &mut MenuState,
 ) {
@@ -308,6 +309,12 @@ pub fn draw_editor(
 
             ui.add(nih_plug_egui::widgets::ParamSlider::for_param(params.volume, setter));
             ui.add(nih_plug_egui::widgets::ParamSlider::for_param(params.frequency, setter));
+
+            let prev_drone = *drone_active;
+            ui.checkbox(drone_active, "Drone (continuous play, no MIDI required)");
+            if *drone_active != prev_drone {
+                let _ = shared.command_tx.try_send(UiCommand::SetDroneEnabled(*drone_active));
+            }
 
             ui.add_space(8.0);
             ui.label("ADSR Envelope");

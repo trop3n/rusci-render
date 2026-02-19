@@ -63,6 +63,8 @@ pub enum UiCommand {
     },
     /// Stop video recording.
     StopRecording,
+    /// Enable or disable drone mode (continuous playback without MIDI).
+    SetDroneEnabled(bool),
 }
 
 /// A lightweight, UI-readable mirror of one effect in the chain.

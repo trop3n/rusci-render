@@ -1,5 +1,20 @@
 use nih_plug::prelude::*;
 use nih_plug_egui::{create_egui_editor, egui, EguiState};
+
+/// Per-frame mutable UI state persisted by nih-plug across editor redraws.
+struct EditorUiState {
+    selected_effect_id: String,
+    drone_active: bool,
+}
+
+impl Default for EditorUiState {
+    fn default() -> Self {
+        Self {
+            selected_effect_id: String::new(),
+            drone_active: false,
+        }
+    }
+}
 use osci_effects::registry::find_effect;
 use osci_gui::{AudioInfo, EditorSharedState, EffectSnapshot, GpuScopeState, MenuState, OsciPluginParamRefs, UiCommand, VisBuffer};
 use osci_parsers::default_shapes;
@@ -17,6 +32,9 @@ pub struct OsciPlugin {
     x_buf: Vec<f32>,
     y_buf: Vec<f32>,
     z_buf: Vec<f32>,
+
+    // Drone mode: fire a continuous NoteOn when no MIDI voices are active
+    drone_active: bool,
 
     // Effect chain template — synced to all voices on change
     effect_template: Vec<VoiceEffect>,
@@ -121,6 +139,7 @@ impl Default for OsciPlugin {
             x_buf: Vec::new(),
             y_buf: Vec::new(),
             z_buf: Vec::new(),
+            drone_active: false,
             effect_template: Vec::new(),
             net_server: None,
             command_rx: rx,
@@ -170,9 +189,9 @@ impl Plugin for OsciPlugin {
 
         create_egui_editor(
             self.params.editor_state.clone(),
-            String::new(), // selected_effect_id state
+            EditorUiState::default(),
             |_, _| {},
-            move |egui_ctx, setter, selected_effect_id| {
+            move |egui_ctx, setter, ui_state| {
                 // Lock shared state for this frame
                 let snapshots = shared
                     .effect_snapshots
@@ -205,7 +224,8 @@ impl Plugin for OsciPlugin {
                     &shared,
                     &snapshots,
                     &vis,
-                    selected_effect_id,
+                    &mut ui_state.selected_effect_id,
+                    &mut ui_state.drone_active,
                     scope,
                     &mut menu_state.lock().unwrap(),
                 );
@@ -396,6 +416,17 @@ impl Plugin for OsciPlugin {
                 UiCommand::StartRecording { .. } | UiCommand::StopRecording => {
                     // Recording commands are handled on the UI/render thread
                 }
+                UiCommand::SetDroneEnabled(enabled) => {
+                    self.drone_active = enabled;
+                    self.synth.set_midi_enabled(!enabled);
+                    if !enabled {
+                        // Release the drone voice
+                        self.synth.handle_midi_event(
+                            MidiEvent::NoteOff { note: 69, velocity: 0.0 },
+                            &mut self.sound,
+                        );
+                    }
+                }
             }
         }
 
@@ -438,6 +469,14 @@ impl Plugin for OsciPlugin {
                 }
                 _ => {}
             }
+        }
+
+        // Drone mode: keep a voice alive when no MIDI is driving the synth
+        if self.drone_active && self.synth.active_voice_count() == 0 {
+            self.synth.handle_midi_event(
+                MidiEvent::NoteOn { note: 69, velocity: 1.0 },
+                &mut self.sound,
+            );
         }
 
         // Render audio into scratch buffers
