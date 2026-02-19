@@ -266,10 +266,10 @@ impl Plugin for OsciPlugin {
             snaps.clear();
         }
 
-        // Create fresh command channel
-        let (tx, rx) = crossbeam::channel::bounded(256);
-        self.command_tx = tx;
-        self.command_rx = rx;
+        // Drain any stale commands from a previous session (do NOT replace the channel —
+        // the editor already holds a clone of command_tx and replacing the receiver
+        // would silently disconnect all UI→audio communication).
+        while self.command_rx.try_recv().is_ok() {}
 
         // Start network servers
         let frame_tx = self.sound.sender();
