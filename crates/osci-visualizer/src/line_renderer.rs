@@ -87,9 +87,9 @@ impl LineRenderer {
         for i in 0..num_segments {
             // Map from [-1,1] to [0,1] UV space
             let ax = x_samples[i] * 0.5 + 0.5;
-            let ay = (-y_samples[i]) * 0.5 + 0.5; // flip Y
+            let ay = y_samples[i] * 0.5 + 0.5; // GL framebuffers are y-up, like the samples
             let bx = x_samples[i + 1] * 0.5 + 0.5;
-            let by = (-y_samples[i + 1]) * 0.5 + 0.5;
+            let by = y_samples[i + 1] * 0.5 + 0.5;
 
             let base = (i * 4) as u32;
 
@@ -129,6 +129,7 @@ impl LineRenderer {
             gl.draw_elements(glow::TRIANGLES, (num_segments * 6) as i32, glow::UNSIGNED_INT, 0);
 
             gl.bind_vertex_array(None);
+            gl.bind_buffer(glow::ARRAY_BUFFER, None);
             gl.use_program(None);
         }
     }

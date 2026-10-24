@@ -296,8 +296,7 @@ impl ShapeVoice {
             if self.renderer.frame_complete() {
                 sound.update_frame();
                 let new_frame = sound.clone_frame();
-                self.renderer.set_shapes(new_frame);
-                self.renderer.reset_frame_drawn();
+                self.renderer.start_next_frame(new_frame);
             }
         }
 

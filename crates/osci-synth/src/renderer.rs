@@ -82,9 +82,8 @@ impl ShapeRenderer {
 
         self.increment_shape_drawing();
 
-        if self.frame_drawn >= self.shapes_length {
-            self.frame_drawn -= self.shapes_length;
-            self.current_shape = 0;
+        if self.frame_complete() {
+            self.wrap_frame();
         }
 
         point
@@ -119,12 +118,31 @@ impl ShapeRenderer {
         self.frame_drawn >= self.shapes_length && self.shapes_length > 0.0
     }
 
-    /// Reset the frame-drawn counter after updating shapes.
-    pub fn reset_frame_drawn(&mut self) {
-        if self.shapes_length > 0.0 {
-            self.frame_drawn -= self.shapes_length;
-        }
+    /// Swap in the next frame's shapes once `frame_complete()` is true.
+    ///
+    /// Any distance drawn past the end of the old frame carries over into
+    /// the new one, so the beam keeps moving at a steady speed.
+    pub fn start_next_frame(&mut self, shapes: Vec<Box<dyn Shape>>) {
+        let overshoot = (self.frame_drawn - self.shapes_length).max(0.0);
+        self.set_shapes(shapes);
+        self.move_to(overshoot);
+    }
+
+    /// Go back to the start of the same frame, keeping the overshoot.
+    fn wrap_frame(&mut self) {
+        let overshoot = (self.frame_drawn - self.shapes_length).max(0.0);
+        self.move_to(overshoot);
+    }
+
+    /// Place the beam `distance` along the frame from its start.
+    fn move_to(&mut self, distance: f64) {
         self.current_shape = 0;
+        self.frame_drawn = 0.0;
+        self.shape_drawn = 0.0;
+        if self.shapes_length > 0.0 {
+            // Wrap first so a huge overshoot can't loop over the shapes many times.
+            self.increment_with(distance % self.shapes_length);
+        }
     }
 
     fn increment_shape_drawing(&mut self) {
@@ -192,6 +210,76 @@ mod tests {
         // Should produce points along the line
         let p1 = r.next_vector();
         assert!(p1.x >= -1.0 && p1.x <= 1.0);
+    }
+
+    fn square() -> Vec<Box<dyn Shape>> {
+        let corners = [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)];
+        (0..4)
+            .map(|i| {
+                let (x1, y1) = corners[i];
+                let (x2, y2) = corners[(i + 1) % 4];
+                Box::new(Line::new_2d(x1, y1, x2, y2)) as Box<dyn Shape>
+            })
+            .collect()
+    }
+
+    fn close(a: Point, b: Point) -> bool {
+        (a.x - b.x).abs() < 1e-3 && (a.y - b.y).abs() < 1e-3
+    }
+
+    #[test]
+    fn wrap_returns_to_start_of_first_shape() {
+        // 64 samples per trip round the square.
+        let mut r = ShapeRenderer::new(6400.0, 100.0);
+        r.set_shapes(square());
+        let first = r.next_vector();
+        for _ in 1..64 {
+            r.next_vector();
+        }
+        let after_wrap = r.next_vector();
+        assert!(close(first, after_wrap), "{first:?} vs {after_wrap:?}");
+    }
+
+    #[test]
+    fn output_is_periodic_over_many_frames() {
+        let mut r = ShapeRenderer::new(6400.0, 100.0);
+        r.set_shapes(square());
+        let samples: Vec<Point> = (0..64 * 10).map(|_| r.next_vector()).collect();
+        for (i, p) in samples.iter().enumerate().skip(64) {
+            assert!(close(*p, samples[i - 64]), "sample {i}: {p:?} vs {:?}", samples[i - 64]);
+        }
+    }
+
+    #[test]
+    fn next_frame_completes_after_one_trip() {
+        // The voice path: drive with an increment, swap frames on completion.
+        let mut r = ShapeRenderer::new(6400.0, 100.0);
+        r.set_shapes(square());
+        let increment = r.frame_length() / 64.0;
+        let mut completions = Vec::new();
+        for i in 0..64 * 4 {
+            r.next_vector_with_increment(increment);
+            if r.frame_complete() {
+                completions.push(i);
+                r.start_next_frame(square());
+            }
+        }
+        assert_eq!(completions, vec![63, 127, 191, 255]);
+    }
+
+    #[test]
+    fn next_frame_keeps_the_overshoot() {
+        let mut r = ShapeRenderer::new(6400.0, 100.0);
+        r.set_shapes(square());
+        // Square length is 8; 3 steps of 3 overshoot the end by 1.
+        for _ in 0..3 {
+            r.next_vector_with_increment(3.0);
+        }
+        assert!(r.frame_complete());
+        r.start_next_frame(square());
+        // 1 unit along the first edge, from (-1,-1) towards (1,-1).
+        let p = r.next_vector_with_increment(0.0);
+        assert!(close(p, Point::xy(0.0, -1.0)), "{p:?}");
     }
 
     #[test]
