@@ -383,9 +383,10 @@ mod tests {
 
     #[test]
     fn test_atomic_f32() {
-        let a = AtomicF32::new(3.14);
-        assert!((a.load() - 3.14).abs() < 0.001);
-        a.store(2.71);
-        assert!((a.load() - 2.71).abs() < 0.001);
+        // Exactly representable values, so the round trip must be bit-exact.
+        let a = AtomicF32::new(1.25);
+        assert_eq!(a.load(), 1.25);
+        a.store(-0.5);
+        assert_eq!(a.load(), -0.5);
     }
 }
