@@ -1,5 +1,5 @@
 use cosmic_text::{Attrs, Buffer, Family, FontSystem, Metrics, Shaping, SwashCache, SwashContent};
-use osci_core::shape::{normalize_shapes, Line, Shape};
+use osci_core::shape::{Line, Shape};
 
 /// Configuration for text-to-shape conversion.
 pub struct TextConfig {
@@ -17,7 +17,7 @@ impl Default for TextConfig {
 ///
 /// Each character is rasterised using `cosmic-text` and then converted into
 /// horizontal line segments by scanning alpha rows. The resulting shapes are
-/// normalized to fit within the [-1, 1] coordinate range.
+/// centred and scaled to fit within [-0.9, 0.9], as osci-render does for text.
 pub fn parse_text(text: &str, config: &TextConfig) -> Result<Vec<Box<dyn Shape>>, String> {
     if text.is_empty() {
         return Ok(Vec::new());
@@ -115,10 +115,9 @@ pub fn parse_text(text: &str, config: &TextConfig) -> Result<Vec<Box<dyn Shape>>
         }
     }
 
-    // 7. Normalize shapes to [-1, 1]
-    if !shapes.is_empty() {
-        normalize_shapes(&mut shapes);
-    }
+    // 7. Centre and fit. Y is already up (negated above), so don't use
+    //    normalize_shapes, which flips it again.
+    crate::svg::fit_centered(&mut shapes);
 
     Ok(shapes)
 }
@@ -136,6 +135,22 @@ mod tests {
             !shapes.is_empty(),
             "Expected non-empty shapes for 'Hello', got 0"
         );
+    }
+
+    #[test]
+    fn text_is_upright() {
+        // A "T": its widest scanlines are the crossbar, which must be at the top.
+        let shapes = parse_text("T", &TextConfig { font_size: 48.0 }).unwrap();
+        let rows: Vec<(f32, f32)> = shapes
+            .iter()
+            .map(|s| {
+                let (a, b) = (s.next_vector(0.0), s.next_vector(1.0));
+                ((b.x - a.x).abs(), a.y)
+            })
+            .collect();
+        let widest = rows.iter().cloned().fold((0.0, 0.0), |m, r| if r.0 > m.0 { r } else { m });
+        let mean_y = rows.iter().map(|r| r.1).sum::<f32>() / rows.len() as f32;
+        assert!(widest.1 > mean_y, "crossbar at y={} is below the stem (mean y={mean_y})", widest.1);
     }
 
     #[test]
