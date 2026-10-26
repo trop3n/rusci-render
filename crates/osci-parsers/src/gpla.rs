@@ -111,34 +111,7 @@ fn parse_json_gpla(data: &[u8]) -> Result<GplaFrames, String> {
             continue;
         }
 
-        let objects: Vec<GplaObject> = json_frame
-            .objects
-            .iter()
-            .map(|obj| {
-                let strokes: Vec<Stroke> = obj
-                    .vertices
-                    .iter()
-                    .map(|stroke_verts| {
-                        stroke_verts
-                            .iter()
-                            .map(|v| Vertex3 {
-                                x: v.x,
-                                y: v.y,
-                                z: v.z,
-                            })
-                            .collect()
-                    })
-                    .collect();
-
-                let mut matrix = [0.0f64; 16];
-                for (i, val) in obj.matrix.iter().enumerate().take(16) {
-                    matrix[i] = *val;
-                }
-
-                GplaObject { strokes, matrix }
-            })
-            .collect();
-
+        let objects = json_objects(&json_frame.objects);
         frames.push(assemble_frame(&objects, focal_length));
     }
 
@@ -147,6 +120,55 @@ fn parse_json_gpla(data: &[u8]) -> Result<GplaFrames, String> {
         frames,
         frame_rate: DEFAULT_FRAME_RATE,
     })
+}
+
+/// Parse one frame of the older JSON streaming format,
+/// `{"objects": [...], "focalLength": f}`, which Blender add-ons before
+/// GPLA 2 sent over the live connection. Like osci-render, every object needs
+/// a 16-value matrix and every stroke at least one vertex; a missing focal
+/// length defaults to 1.
+pub fn parse_json_frame(data: &[u8]) -> Result<Vec<Box<dyn Shape>>, String> {
+    #[derive(Deserialize)]
+    struct JsonFrame {
+        objects: Vec<GplaJsonObject>,
+        #[serde(rename = "focalLength", default = "default_focal_length")]
+        focal_length: f64,
+    }
+    fn default_focal_length() -> f64 {
+        1.0
+    }
+
+    let frame: JsonFrame =
+        serde_json::from_slice(data).map_err(|e| format!("Failed to parse GPLA JSON frame: {e}"))?;
+    for obj in &frame.objects {
+        if obj.matrix.len() != 16 {
+            return Err(format!("GPLA object matrix has {} values, expected 16", obj.matrix.len()));
+        }
+        if obj.vertices.iter().any(Vec::is_empty) {
+            return Err("GPLA object has an empty stroke".to_string());
+        }
+    }
+    Ok(assemble_frame(&json_objects(&frame.objects), frame.focal_length))
+}
+
+fn json_objects(objects: &[GplaJsonObject]) -> Vec<GplaObject> {
+    objects
+        .iter()
+        .map(|obj| {
+            let strokes = obj
+                .vertices
+                .iter()
+                .map(|stroke| stroke.iter().map(|v| Vertex3 { x: v.x, y: v.y, z: v.z }).collect())
+                .collect();
+
+            let mut matrix = [0.0f64; 16];
+            for (i, val) in obj.matrix.iter().enumerate().take(16) {
+                matrix[i] = *val;
+            }
+
+            GplaObject { strokes, matrix }
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -884,5 +906,31 @@ mod tests {
         let result = parse_gpla(json.as_bytes()).unwrap();
         assert_eq!(result.frames.len(), 1);
         assert_eq!(endpoints(&result.frames[0]), vec![[0.0, 0.0, 2.5, 0.0]]);
+    }
+
+    #[test]
+    fn json_stream_frame_is_upright() {
+        let json = br#"{"objects":[{"name":"Line Art",
+            "vertices":[[{"x":0,"y":1,"z":-5},{"x":0,"y":0,"z":-5},{"x":0.5,"y":0,"z":-5}]],
+            "matrix":[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]}],"focalLength":-2.5}"#;
+        let frame = parse_json_frame(json).unwrap();
+        assert_eq!(endpoints(&frame), vec![[0.0, 0.5, 0.0, 0.0], [0.0, 0.0, 0.25, 0.0]]);
+    }
+
+    #[test]
+    fn json_stream_frame_defaults_focal_length_to_one() {
+        let json = br#"{"objects":[{"vertices":[[{"x":0,"y":0,"z":-1},{"x":1,"y":0,"z":-1}]],
+            "matrix":[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]}]}"#;
+        assert_eq!(endpoints(&parse_json_frame(json).unwrap()), vec![[0.0, 0.0, -1.0, 0.0]]);
+    }
+
+    #[test]
+    fn json_stream_frame_rejects_bad_objects() {
+        let short_matrix = br#"{"objects":[{"vertices":[[{"x":0,"y":0,"z":-1}]],"matrix":[1,0,0]}]}"#;
+        let empty_stroke = br#"{"objects":[{"vertices":[[]],
+            "matrix":[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]}]}"#;
+        for bad in [&short_matrix[..], &empty_stroke[..], b"{}", b"not json"] {
+            assert!(parse_json_frame(bad).is_err(), "{}", String::from_utf8_lossy(bad));
+        }
     }
 }

@@ -3284,6 +3284,7 @@ dependencies = [
 name = "osci-net"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "crossbeam",
  "futures-util",
  "glow",
