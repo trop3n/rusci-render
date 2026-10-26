@@ -1,4 +1,12 @@
-use osci_core::shape::{normalize_shapes, Line, Shape};
+//! GPLA line art, as exported by osci-render's Blender add-on.
+//!
+//! Port of `LineArtParser` from osci-render (osci_file_import). Frames are
+//! projected through the camera and used as-is: Blender writes a negative
+//! focal length (`-0.05 * lens`), so `x * focal / z` comes out upright and
+//! a 50 mm camera's view spans roughly -0.9..0.9. Frames are not normalised,
+//! so the camera's framing holds across an animation.
+
+use osci_core::shape::{Line, Shape};
 use serde::Deserialize;
 
 /// Parsed GPLA animation data: a sequence of frames, each containing drawable shapes.
@@ -6,6 +14,9 @@ pub struct GplaFrames {
     pub frames: Vec<Vec<Box<dyn Shape>>>,
     pub frame_rate: u32,
 }
+
+/// Frame rate used when the file doesn't give one.
+const DEFAULT_FRAME_RATE: u32 = 24;
 
 // ---------------------------------------------------------------------------
 // JSON format structs
@@ -18,13 +29,15 @@ struct GplaJson {
 
 #[derive(Deserialize)]
 struct GplaJsonFrame {
+    #[serde(default)]
     objects: Vec<GplaJsonObject>,
     #[serde(rename = "focalLength")]
-    focal_length: f64,
+    focal_length: Option<f64>,
 }
 
 #[derive(Deserialize)]
 struct GplaJsonObject {
+    #[serde(default)]
     vertices: Vec<Vec<GplaJsonVertex>>,
     matrix: Vec<f64>,
 }
@@ -72,12 +85,8 @@ pub fn parse_gpla(data: &[u8]) -> Result<GplaFrames, String> {
         }
     }
 
-    // Check for binary GPLA header
-    if data.len() >= 8 {
-        let tag = read_tag(&data[..8]);
-        if tag == "GPLA    " {
-            return parse_binary_gpla(data);
-        }
+    if data.starts_with(GPLA) {
+        return parse_binary_gpla(data);
     }
 
     Err("Unrecognised GPLA format: data is neither JSON nor valid binary GPLA".to_string())
@@ -94,9 +103,14 @@ fn parse_json_gpla(data: &[u8]) -> Result<GplaFrames, String> {
     let mut frames = Vec::with_capacity(gpla.frames.len());
 
     for json_frame in &gpla.frames {
-        let focal_length = json_frame.focal_length;
+        // Like osci-render, skip frames with no objects or no focal length.
+        let Some(focal_length) = json_frame.focal_length else {
+            continue;
+        };
+        if json_frame.objects.is_empty() {
+            continue;
+        }
 
-        // Collect objects
         let objects: Vec<GplaObject> = json_frame
             .objects
             .iter()
@@ -125,170 +139,221 @@ fn parse_json_gpla(data: &[u8]) -> Result<GplaFrames, String> {
             })
             .collect();
 
-        let mut shapes = assemble_frame(&objects, focal_length);
-        if !shapes.is_empty() {
-            normalize_shapes(&mut shapes);
-        }
-        frames.push(shapes);
+        frames.push(assemble_frame(&objects, focal_length));
     }
 
-    // JSON format does not encode frame rate; use a sensible default.
+    // JSON format does not encode frame rate.
     Ok(GplaFrames {
         frames,
-        frame_rate: 24,
+        frame_rate: DEFAULT_FRAME_RATE,
     })
 }
 
 // ---------------------------------------------------------------------------
 // Binary parser
 // ---------------------------------------------------------------------------
+//
+// The file is a sequence of little-endian 8-byte words. Tags are 8 ASCII
+// characters padded with spaces; sections nest, and each `DONE` closes the
+// innermost one. What the Blender add-on writes (GPLA 2.0.0):
+//
+//   GPLA <major> <minor> <patch>
+//   FILE fCount <n> fRate <fps> DONE
+//   FRAME focalLen <f64> OBJECTS
+//     OBJECT MATRIX <16 x f64> DONE
+//       STROKES
+//         STROKE vertexCt <n> VERTICES <n x 3 x f64> DONE DONE
+//       DONE
+//     DONE
+//   DONE DONE
+//   ...more FRAMEs...
+//   END GPLA
+//
+// Like osci-render, unknown tags are skipped, so later versions can add
+// fields.
+
+type Tag = [u8; 8];
+
+const GPLA: &Tag = b"GPLA    ";
+const FILE: &Tag = b"FILE    ";
+const F_RATE: &Tag = b"fRate   ";
+const DONE: &Tag = b"DONE    ";
+const FRAME: &Tag = b"FRAME   ";
+const FOCAL_LEN: &Tag = b"focalLen";
+const OBJECTS: &Tag = b"OBJECTS ";
+const OBJECT: &Tag = b"OBJECT  ";
+const MATRIX: &Tag = b"MATRIX  ";
+const STROKES: &Tag = b"STROKES ";
+const STROKE: &Tag = b"STROKE  ";
+const VERTEX_COUNT: &Tag = b"vertexCt";
+const VERTICES: &Tag = b"VERTICES";
+const END: &Tag = b"END GPLA";
+
+/// Reads 8-byte words, failing cleanly at the end of the data.
+struct Words<'a> {
+    data: &'a [u8],
+    pos: usize,
+}
+
+impl Words<'_> {
+    fn next(&mut self) -> Result<Tag, String> {
+        let word = self
+            .data
+            .get(self.pos..self.pos + 8)
+            .ok_or("Unexpected end of GPLA binary data")?;
+        self.pos += 8;
+        Ok(word.try_into().unwrap())
+    }
+
+    fn u64(&mut self) -> Result<u64, String> {
+        Ok(u64::from_le_bytes(self.next()?))
+    }
+
+    fn f64(&mut self) -> Result<f64, String> {
+        Ok(f64::from_le_bytes(self.next()?))
+    }
+
+    fn remaining(&self) -> usize {
+        (self.data.len() - self.pos) / 8
+    }
+
+    fn expect(&mut self, tag: &Tag) -> Result<(), String> {
+        let got = self.next()?;
+        if &got != tag {
+            return Err(format!("Expected {:?}, got {:?}", tag_str(tag), tag_str(&got)));
+        }
+        Ok(())
+    }
+}
+
+fn tag_str(tag: &Tag) -> String {
+    String::from_utf8_lossy(tag).into_owned()
+}
 
 fn parse_binary_gpla(data: &[u8]) -> Result<GplaFrames, String> {
-    let mut pos: usize = 0;
-
-    let read_i64 = |pos: &mut usize| -> Result<i64, String> {
-        if *pos + 8 > data.len() {
-            return Err("Unexpected end of GPLA binary data".to_string());
-        }
-        let val = i64::from_le_bytes(data[*pos..*pos + 8].try_into().unwrap());
-        *pos += 8;
-        Ok(val)
-    };
-
-    let read_f64 = |pos: &mut usize| -> Result<f64, String> {
-        let raw = read_i64(pos)?;
-        Ok(f64::from_bits(raw as u64))
-    };
-
-    let read_tag_at = |pos: &mut usize| -> Result<String, String> {
-        let raw = read_i64(pos)?;
-        Ok(read_tag(&raw.to_le_bytes()))
-    };
-
-    // Header: "GPLA    "
-    let header = read_tag_at(&mut pos)?;
-    if header != "GPLA    " {
-        return Err(format!("Invalid GPLA header: {:?}", header));
+    let mut r = Words { data, pos: 0 };
+    r.expect(GPLA)?;
+    for _ in 0..3 {
+        r.next()?; // version: major, minor, patch
     }
 
-    // Version
-    let _version = read_i64(&mut pos)?;
-
-    // FILE tag
-    let file_tag = read_tag_at(&mut pos)?;
-    if file_tag != "FILE    " {
-        return Err(format!("Expected FILE tag, got {:?}", file_tag));
+    r.expect(FILE)?;
+    let mut frame_rate = 0;
+    loop {
+        let tag = r.next()?;
+        if &tag == DONE {
+            break;
+        }
+        let value = r.u64()?;
+        if &tag == F_RATE {
+            frame_rate = value;
+        }
+        // fCount is informational; frames are counted as they're read.
     }
 
-    // Metadata: fCount, fRate
-    let frame_count = read_i64(&mut pos)? as usize;
-    let frame_rate = read_i64(&mut pos)? as u32;
-
-    // DONE tag after metadata
-    let done_tag = read_tag_at(&mut pos)?;
-    if done_tag != "DONE    " {
-        return Err(format!("Expected DONE after FILE metadata, got {:?}", done_tag));
+    let mut frames = Vec::new();
+    loop {
+        let tag = r.next()?;
+        if &tag == END {
+            break;
+        }
+        if &tag == FRAME {
+            frames.push(parse_binary_frame(&mut r)?);
+        }
+        // Anything else, including the DONE that closes each FRAME, is skipped.
     }
 
-    // Parse frames
-    let mut frames = Vec::with_capacity(frame_count);
+    let frame_rate = match u32::try_from(frame_rate) {
+        Ok(0) | Err(_) => DEFAULT_FRAME_RATE,
+        Ok(fps) => fps,
+    };
+    Ok(GplaFrames { frames, frame_rate })
+}
 
-    for _ in 0..frame_count {
-        // FRAME tag
-        let frame_tag = read_tag_at(&mut pos)?;
-        if frame_tag != "FRAME   " {
-            return Err(format!("Expected FRAME tag, got {:?}", frame_tag));
+fn parse_binary_frame(r: &mut Words) -> Result<Vec<Box<dyn Shape>>, String> {
+    let mut focal_length = None;
+    loop {
+        let tag = r.next()?;
+        if &tag == OBJECTS {
+            break;
         }
-
-        // Focal length
-        let focal_length = read_f64(&mut pos)?;
-
-        // OBJECTS tag
-        let objects_tag = read_tag_at(&mut pos)?;
-        if objects_tag != "OBJECTS " {
-            return Err(format!("Expected OBJECTS tag, got {:?}", objects_tag));
+        let value = r.f64()?;
+        if &tag == FOCAL_LEN {
+            focal_length = Some(value);
         }
+    }
+    let focal_length = focal_length.ok_or("GPLA frame has no focal length")?;
 
-        let mut objects: Vec<GplaObject> = Vec::new();
+    let mut objects = Vec::new();
+    loop {
+        let tag = r.next()?;
+        if &tag == DONE {
+            break;
+        }
+        if &tag == OBJECT {
+            objects.push(parse_binary_object(r)?);
+        }
+    }
 
-        // Read objects until DONE
-        loop {
-            let tag = read_tag_at(&mut pos)?;
-            if tag == "DONE    " {
-                break;
+    Ok(assemble_frame(&objects, focal_length))
+}
+
+fn parse_binary_object(r: &mut Words) -> Result<GplaObject, String> {
+    let mut matrix = None;
+    let mut strokes = Vec::new();
+    loop {
+        let tag = r.next()?;
+        if &tag == DONE {
+            break;
+        }
+        if &tag == MATRIX {
+            let mut m = [0.0f64; 16];
+            for v in m.iter_mut() {
+                *v = r.f64()?;
             }
-            if tag != "OBJECT  " {
-                return Err(format!("Expected OBJECT or DONE, got {:?}", tag));
-            }
-
-            // MATRIX tag
-            let matrix_tag = read_tag_at(&mut pos)?;
-            if matrix_tag != "MATRIX  " {
-                return Err(format!("Expected MATRIX tag, got {:?}", matrix_tag));
-            }
-
-            let mut matrix = [0.0f64; 16];
-            for m in matrix.iter_mut() {
-                *m = read_f64(&mut pos)?;
-            }
-
-            // STROKES tag
-            let strokes_tag = read_tag_at(&mut pos)?;
-            if strokes_tag != "STROKES " {
-                return Err(format!("Expected STROKES tag, got {:?}", strokes_tag));
-            }
-
-            let mut strokes: Vec<Stroke> = Vec::new();
-
-            // Read strokes until DONE
+            r.next()?; // DONE closing MATRIX
+            matrix = Some(m);
+        } else if &tag == STROKES {
             loop {
-                let tag = read_tag_at(&mut pos)?;
-                if tag == "DONE    " {
+                let tag = r.next()?;
+                if &tag == DONE {
                     break;
                 }
-                if tag != "STROKE  " {
-                    return Err(format!("Expected STROKE or DONE, got {:?}", tag));
+                if &tag == STROKE {
+                    strokes.push(parse_binary_stroke(r)?);
                 }
-
-                let vertex_count = read_i64(&mut pos)? as usize;
-
-                // VERTICES tag
-                let verts_tag = read_tag_at(&mut pos)?;
-                if verts_tag != "VERTICES" {
-                    return Err(format!("Expected VERTICES tag, got {:?}", verts_tag));
-                }
-
-                let mut stroke = Vec::with_capacity(vertex_count);
-                for _ in 0..vertex_count {
-                    let x = read_f64(&mut pos)?;
-                    let y = read_f64(&mut pos)?;
-                    let z = read_f64(&mut pos)?;
-                    stroke.push(Vertex3 { x, y, z });
-                }
-
-                // DONE after vertices
-                let done = read_tag_at(&mut pos)?;
-                if done != "DONE    " {
-                    return Err(format!(
-                        "Expected DONE after VERTICES, got {:?}",
-                        done
-                    ));
-                }
-
-                strokes.push(stroke);
             }
-
-            objects.push(GplaObject { strokes, matrix });
         }
-
-        let mut shapes = assemble_frame(&objects, focal_length);
-        if !shapes.is_empty() {
-            normalize_shapes(&mut shapes);
-        }
-        frames.push(shapes);
     }
+    let matrix = matrix.ok_or("GPLA object has no MATRIX")?;
+    Ok(GplaObject { strokes, matrix })
+}
 
-    Ok(GplaFrames { frames, frame_rate })
+fn parse_binary_stroke(r: &mut Words) -> Result<Stroke, String> {
+    let mut count = 0;
+    let mut stroke = Vec::new();
+    loop {
+        let tag = r.next()?;
+        if &tag == DONE {
+            break;
+        }
+        if &tag == VERTEX_COUNT {
+            count = r.u64()?;
+        } else if &tag == VERTICES {
+            // Check against what's left before allocating.
+            if count > (r.remaining() / 3) as u64 {
+                return Err(format!("GPLA stroke claims {count} vertices, more than the data holds"));
+            }
+            stroke.reserve(count as usize);
+            for _ in 0..count {
+                let (x, y, z) = (r.f64()?, r.f64()?, r.f64()?);
+                stroke.push(Vertex3 { x, y, z });
+            }
+            // Skip to the DONE closing VERTICES.
+            while &r.next()? != DONE {}
+        }
+    }
+    Ok(stroke)
 }
 
 // ---------------------------------------------------------------------------
@@ -323,7 +388,8 @@ fn assemble_frame(objects: &[GplaObject], focal_length: f64) -> Vec<Box<dyn Shap
                 let ry1 = v1.x * m[4] + v1.y * m[5] + v1.z * m[6] + m[7];
                 let rz1 = v1.x * m[8] + v1.y * m[9] + v1.z * m[10] + m[11];
 
-                // Only draw if both z values are < 0 (behind camera)
+                // Blender cameras look down -z: skip lines with either end
+                // at or behind the camera.
                 if rz0 >= 0.0 || rz1 >= 0.0 {
                     continue;
                 }
@@ -393,15 +459,6 @@ fn reorder_strokes(strokes: &[Stroke]) -> Vec<Stroke> {
     }
 
     order
-}
-
-/// Read an 8-byte tag from raw bytes, interpreting them as ASCII characters.
-fn read_tag(bytes: &[u8]) -> String {
-    let mut s = String::with_capacity(8);
-    for &b in bytes.iter().take(8) {
-        s.push(b as char);
-    }
-    s
 }
 
 // ---------------------------------------------------------------------------
@@ -623,5 +680,209 @@ mod tests {
         assert_eq!(result.frames.len(), 1);
         // A stroke with only 1 vertex produces no line segments
         assert!(result.frames[0].is_empty());
+    }
+
+    // -- Orientation and binary format ---------------------------------------
+
+    /// Endpoints of every line in a frame, rounded to 1e-4.
+    fn endpoints(frame: &[Box<dyn Shape>]) -> Vec<[f32; 4]> {
+        let r = |v: f32| (v * 1e4).round() / 1e4;
+        frame
+            .iter()
+            .map(|s| {
+                let (a, b) = (s.next_vector(0.0), s.next_vector(1.0));
+                [r(a.x), r(a.y), r(b.x), r(b.y)]
+            })
+            .collect()
+    }
+
+    const IDENTITY: [f64; 16] = [
+        1.0, 0.0, 0.0, 0.0, //
+        0.0, 1.0, 0.0, 0.0, //
+        0.0, 0.0, 1.0, 0.0, //
+        0.0, 0.0, 0.0, 1.0,
+    ];
+
+    /// Focal length the Blender add-on writes for a 50 mm lens.
+    const FOCAL_50MM: f64 = -0.05 * 50.0;
+
+    type TestObject = ([f64; 16], Vec<Vec<[f64; 3]>>);
+
+    /// A binary GPLA file laid out exactly as the Blender add-on writes it
+    /// (`gpla_header` and `get_frame_info_binary` in blender/osci_render).
+    fn binary_gpla(fps: u64, frames: &[(f64, Vec<TestObject>)]) -> Vec<u8> {
+        let mut out = Vec::new();
+        out.extend(b"GPLA    ");
+        for v in [2u64, 0, 0] {
+            out.extend(v.to_le_bytes());
+        }
+        out.extend(b"FILE    fCount  ");
+        out.extend((frames.len() as u64).to_le_bytes());
+        out.extend(b"fRate   ");
+        out.extend(fps.to_le_bytes());
+        out.extend(b"DONE    ");
+        for (focal, objects) in frames {
+            out.extend(b"FRAME   focalLen");
+            out.extend(focal.to_le_bytes());
+            out.extend(b"OBJECTS ");
+            for (matrix, strokes) in objects {
+                out.extend(b"OBJECT  MATRIX  ");
+                for v in matrix {
+                    out.extend(v.to_le_bytes());
+                }
+                out.extend(b"DONE    STROKES ");
+                for stroke in strokes {
+                    out.extend(b"STROKE  vertexCt");
+                    out.extend((stroke.len() as u64).to_le_bytes());
+                    out.extend(b"VERTICES");
+                    for p in stroke {
+                        for v in p {
+                            out.extend(v.to_le_bytes());
+                        }
+                    }
+                    out.extend(b"DONE    DONE    ");
+                }
+                out.extend(b"DONE    DONE    ");
+            }
+            out.extend(b"DONE    DONE    ");
+        }
+        out.extend(b"END GPLA");
+        out
+    }
+
+    /// An "L" 5 units in front of the camera: down the left side, then
+    /// along the bottom, with its corner at the origin.
+    fn l_shape() -> Vec<Vec<[f64; 3]>> {
+        vec![vec![[0.0, 1.0, -5.0], [0.0, 0.0, -5.0], [0.5, 0.0, -5.0]]]
+    }
+
+    #[test]
+    fn binary_frame_is_upright_and_not_rescaled() {
+        let data = binary_gpla(30, &[(FOCAL_50MM, vec![(IDENTITY, l_shape())])]);
+        let result = parse_gpla(&data).unwrap();
+        assert_eq!(result.frame_rate, 30);
+        assert_eq!(result.frames.len(), 1);
+        // Projection: 2.5 * x / 5. Up stays up, right stays right, and the
+        // origin stays at the centre.
+        assert_eq!(
+            endpoints(&result.frames[0]),
+            vec![[0.0, 0.5, 0.0, 0.0], [0.0, 0.0, 0.25, 0.0]]
+        );
+    }
+
+    #[test]
+    fn json_frame_is_upright_and_not_rescaled() {
+        let json = r#"{"frames":[{"objects":[{"name":"Line Art",
+            "vertices":[[{"x":0,"y":1,"z":-5},{"x":0,"y":0,"z":-5},{"x":0.5,"y":0,"z":-5}]],
+            "matrix":[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]}],"focalLength":-2.5}]}"#;
+        let result = parse_gpla(json.as_bytes()).unwrap();
+        assert_eq!(
+            endpoints(&result.frames[0]),
+            vec![[0.0, 0.5, 0.0, 0.0], [0.0, 0.0, 0.25, 0.0]]
+        );
+    }
+
+    #[test]
+    fn binary_applies_object_matrix() {
+        // Move the object 1 unit right in camera space.
+        let mut matrix = IDENTITY;
+        matrix[3] = 1.0;
+        let data = binary_gpla(24, &[(FOCAL_50MM, vec![(matrix, l_shape())])]);
+        let result = parse_gpla(&data).unwrap();
+        assert_eq!(
+            endpoints(&result.frames[0]),
+            vec![[0.5, 0.5, 0.5, 0.0], [0.5, 0.0, 0.75, 0.0]]
+        );
+    }
+
+    #[test]
+    fn binary_reads_every_frame_object_and_stroke() {
+        let two_strokes = vec![
+            vec![[0.0, 0.0, -1.0], [1.0, 0.0, -1.0]],
+            vec![[1.0, 1.0, -1.0], [0.0, 1.0, -1.0], [0.0, 0.5, -1.0]],
+        ];
+        let frames = [
+            (FOCAL_50MM, vec![(IDENTITY, two_strokes.clone()), (IDENTITY, l_shape())]),
+            (FOCAL_50MM, vec![]),
+            (FOCAL_50MM, vec![(IDENTITY, l_shape())]),
+        ];
+        let result = parse_gpla(&binary_gpla(12, &frames)).unwrap();
+        assert_eq!(result.frame_rate, 12);
+        let counts: Vec<usize> = result.frames.iter().map(Vec::len).collect();
+        assert_eq!(counts, vec![1 + 2 + 2, 0, 2]);
+    }
+
+    #[test]
+    fn binary_frames_keep_the_camera_framing() {
+        // The same L at two distances: the nearer one should draw bigger,
+        // not be rescaled to match.
+        let near = vec![vec![[0.0, 1.0, -2.0], [0.0, 0.0, -2.0]]];
+        let far = vec![vec![[0.0, 1.0, -4.0], [0.0, 0.0, -4.0]]];
+        let data = binary_gpla(
+            24,
+            &[(FOCAL_50MM, vec![(IDENTITY, near)]), (FOCAL_50MM, vec![(IDENTITY, far)])],
+        );
+        let result = parse_gpla(&data).unwrap();
+        assert_eq!(endpoints(&result.frames[0]), vec![[0.0, 1.25, 0.0, 0.0]]);
+        assert_eq!(endpoints(&result.frames[1]), vec![[0.0, 0.625, 0.0, 0.0]]);
+    }
+
+    #[test]
+    fn binary_skips_unknown_tags() {
+        // Extra metadata in FILE and FRAME, as a later add-on version might write.
+        let mut data = binary_gpla(30, &[(FOCAL_50MM, vec![(IDENTITY, l_shape())])]);
+        let insert_after = |data: &mut Vec<u8>, tag: &[u8], extra: &[u8]| {
+            let at = data.windows(8).position(|w| w == tag).unwrap() + 8;
+            data.splice(at..at, extra.iter().copied());
+        };
+        let mut extra = b"author  ".to_vec();
+        extra.extend(7u64.to_le_bytes());
+        insert_after(&mut data, b"FILE    ", &extra);
+        let mut extra = b"exposure".to_vec();
+        extra.extend(1.5f64.to_le_bytes());
+        insert_after(&mut data, b"FRAME   ", &extra);
+
+        let result = parse_gpla(&data).unwrap();
+        assert_eq!(result.frame_rate, 30);
+        assert_eq!(result.frames[0].len(), 2);
+    }
+
+    #[test]
+    fn binary_without_frame_rate_uses_default() {
+        let mut data = binary_gpla(0, &[(FOCAL_50MM, vec![(IDENTITY, l_shape())])]);
+        let at = data.windows(8).position(|w| w == b"fRate   ").unwrap();
+        data.drain(at..at + 16);
+        assert_eq!(parse_gpla(&data).unwrap().frame_rate, DEFAULT_FRAME_RATE);
+    }
+
+    #[test]
+    fn truncated_binary_is_an_error_not_a_panic() {
+        let data = binary_gpla(24, &[(FOCAL_50MM, vec![(IDENTITY, l_shape())])]);
+        for len in 8..data.len() {
+            assert!(parse_gpla(&data[..len]).is_err(), "prefix of {len} bytes parsed");
+        }
+    }
+
+    #[test]
+    fn binary_rejects_oversized_vertex_count() {
+        let mut data = binary_gpla(24, &[(FOCAL_50MM, vec![(IDENTITY, l_shape())])]);
+        let at = data.windows(8).position(|w| w == b"vertexCt").unwrap() + 8;
+        data[at..at + 8].copy_from_slice(&u64::MAX.to_le_bytes());
+        let err = parse_gpla(&data).err().unwrap();
+        assert!(err.contains("vertices"), "{err}");
+    }
+
+    #[test]
+    fn json_skips_frames_without_focal_length_or_objects() {
+        let json = r#"{"frames":[
+            {"objects":[{"vertices":[[{"x":0,"y":0,"z":-1},{"x":1,"y":0,"z":-1}]],
+                         "matrix":[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]}]},
+            {"objects":[],"focalLength":-2.5},
+            {"objects":[{"vertices":[[{"x":0,"y":0,"z":-1},{"x":1,"y":0,"z":-1}]],
+                         "matrix":[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]}],"focalLength":-2.5}
+        ]}"#;
+        let result = parse_gpla(json.as_bytes()).unwrap();
+        assert_eq!(result.frames.len(), 1);
+        assert_eq!(endpoints(&result.frames[0]), vec![[0.0, 0.0, 2.5, 0.0]]);
     }
 }
