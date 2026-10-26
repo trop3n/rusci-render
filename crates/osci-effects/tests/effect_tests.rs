@@ -4,8 +4,12 @@ use osci_effects::registry::build_registry;
 // ── Helpers ──────────────────────────────────────────────────────
 
 fn is_valid_point(p: Point) -> bool {
-    p.x.is_finite() && p.y.is_finite() && p.z.is_finite()
-        && p.r.is_finite() && p.g.is_finite() && p.b.is_finite()
+    p.x.is_finite()
+        && p.y.is_finite()
+        && p.z.is_finite()
+        && p.r.is_finite()
+        && p.g.is_finite()
+        && p.b.is_finite()
 }
 
 /// Build a values slice with enough elements for any effect (padded with defaults).
@@ -46,7 +50,11 @@ fn registry_ids_are_unique() {
 fn registry_names_are_non_empty() {
     let registry = build_registry();
     for entry in &registry {
-        assert!(!entry.name.is_empty(), "effect '{}' has empty name", entry.id);
+        assert!(
+            !entry.name.is_empty(),
+            "effect '{}' has empty name",
+            entry.id
+        );
     }
 }
 
@@ -221,7 +229,10 @@ fn delay_state_evolves() {
             break;
         }
     }
-    assert!(found_echo, "delay did not produce echo output after switching to zero input");
+    assert!(
+        found_echo,
+        "delay did not produce echo output after switching to zero input"
+    );
 }
 
 #[test]
@@ -242,10 +253,13 @@ fn bounce_state_evolves() {
 
     // Check that bounce produces at least some variation in output
     let first = outputs[0];
-    let has_variation = outputs.iter().any(|p| {
-        (p.x - first.x).abs() > 0.001 || (p.y - first.y).abs() > 0.001
-    });
-    assert!(has_variation, "bounce produced no variation over 500 samples");
+    let has_variation = outputs
+        .iter()
+        .any(|p| (p.x - first.x).abs() > 0.001 || (p.y - first.y).abs() > 0.001);
+    assert!(
+        has_variation,
+        "bounce produced no variation over 500 samples"
+    );
 }
 
 // ── 5. Determinism — same inputs produce same outputs ────────────
@@ -277,7 +291,14 @@ fn all_effects_are_deterministic() {
             assert!(
                 (a.x - b.x).abs() < 1e-6 && (a.y - b.y).abs() < 1e-6 && (a.z - b.z).abs() < 1e-6,
                 "effect '{}' is non-deterministic at sample {}: A=({},{},{}), B=({},{},{})",
-                entry.id, i, a.x, a.y, a.z, b.x, b.y, b.z
+                entry.id,
+                i,
+                a.x,
+                a.y,
+                a.z,
+                b.x,
+                b.y,
+                b.z
             );
         }
     }
@@ -301,17 +322,26 @@ fn all_parameters_have_valid_ranges() {
             assert!(
                 param.min <= param.default_value,
                 "effect '{}' param '{}': min ({}) > default ({})",
-                entry.id, param.name, param.min, param.default_value
+                entry.id,
+                param.name,
+                param.min,
+                param.default_value
             );
             assert!(
                 param.default_value <= param.max,
                 "effect '{}' param '{}': default ({}) > max ({})",
-                entry.id, param.name, param.default_value, param.max
+                entry.id,
+                param.name,
+                param.default_value,
+                param.max
             );
             assert!(
                 param.min < param.max,
                 "effect '{}' param '{}': min ({}) >= max ({})",
-                entry.id, param.name, param.min, param.max
+                entry.id,
+                param.name,
+                param.min,
+                param.max
             );
             assert!(
                 !param.name.is_empty(),
@@ -332,11 +362,33 @@ fn find_effect_returns_known_ids() {
     use osci_effects::registry::find_effect;
 
     let known_ids = [
-        "bitcrush", "bulge", "vectorCancelling", "ripple", "rotate",
-        "translate", "scale", "swirl", "smooth", "delay", "dashedLine",
-        "wobble", "duplicator", "multiplex", "unfold", "bounce", "twist",
-        "skew", "polygonizer", "kaleidoscope", "vortex", "godRay",
-        "spiralBitcrush", "perspective", "volume", "threshold", "frequency",
+        "bitcrush",
+        "bulge",
+        "vectorCancelling",
+        "ripple",
+        "rotate",
+        "translate",
+        "scale",
+        "swirl",
+        "smooth",
+        "delay",
+        "dashedLine",
+        "wobble",
+        "duplicator",
+        "multiplex",
+        "unfold",
+        "bounce",
+        "twist",
+        "skew",
+        "polygonizer",
+        "kaleidoscope",
+        "vortex",
+        "godRay",
+        "spiralBitcrush",
+        "perspective",
+        "volume",
+        "threshold",
+        "frequency",
     ];
 
     for id in &known_ids {

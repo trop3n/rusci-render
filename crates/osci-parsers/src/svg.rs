@@ -192,7 +192,10 @@ mod tests {
             <path d="M 10 10 L 90 10 L 90 90 L 10 90 Z"/></svg>"#;
         let shapes = parse_svg(svg).unwrap();
         // Y points up, so the SVG's top-left is (-, +). Fitted to 0.9 like osci-render.
-        assert_eq!(starts(&shapes), vec![(-0.9, 0.9), (0.9, 0.9), (0.9, -0.9), (-0.9, -0.9)]);
+        assert_eq!(
+            starts(&shapes),
+            vec![(-0.9, 0.9), (0.9, 0.9), (0.9, -0.9), (-0.9, -0.9)]
+        );
     }
 
     #[test]
@@ -201,6 +204,9 @@ mod tests {
             <path d="M 50 25 L 250 25 L 250 75 L 50 75 Z"/></svg>"#;
         let shapes = parse_svg(svg).unwrap();
         // 200 x 50 box: x fills -0.9..0.9, y a quarter of that, centred.
-        assert_eq!(starts(&shapes), vec![(-0.9, 0.225), (0.9, 0.225), (0.9, -0.225), (-0.9, -0.225)]);
+        assert_eq!(
+            starts(&shapes),
+            vec![(-0.9, 0.225), (0.9, 0.225), (0.9, -0.225), (-0.9, -0.225)]
+        );
     }
 }

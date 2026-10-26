@@ -20,27 +20,39 @@ pub struct EnvCurve {
 
 impl EnvCurve {
     pub fn linear() -> Self {
-        Self { curve_type: EnvCurveType::Linear }
+        Self {
+            curve_type: EnvCurveType::Linear,
+        }
     }
 
     pub fn numerical(curve: f32) -> Self {
-        Self { curve_type: EnvCurveType::Numerical(curve) }
+        Self {
+            curve_type: EnvCurveType::Numerical(curve),
+        }
     }
 
     pub fn step() -> Self {
-        Self { curve_type: EnvCurveType::Step }
+        Self {
+            curve_type: EnvCurveType::Step,
+        }
     }
 
     pub fn exponential() -> Self {
-        Self { curve_type: EnvCurveType::Exponential }
+        Self {
+            curve_type: EnvCurveType::Exponential,
+        }
     }
 
     pub fn sine() -> Self {
-        Self { curve_type: EnvCurveType::Sine }
+        Self {
+            curve_type: EnvCurveType::Sine,
+        }
     }
 
     pub fn welch() -> Self {
-        Self { curve_type: EnvCurveType::Welch }
+        Self {
+            curve_type: EnvCurveType::Welch,
+        }
     }
 }
 
@@ -78,7 +90,13 @@ impl Env {
         release_node: i32,
         loop_node: i32,
     ) -> Self {
-        Self { levels, times, curves, release_node, loop_node }
+        Self {
+            levels,
+            times,
+            curves,
+            release_node,
+            loop_node,
+        }
     }
 
     /// Standard ADSR envelope.
@@ -249,9 +267,7 @@ impl Env {
         }
 
         match curve.curve_type {
-            EnvCurveType::Linear => {
-                linlin(time, last_time, stage_time, level0, level1)
-            }
+            EnvCurveType::Linear => linlin(time, last_time, stage_time, level0, level1),
             EnvCurveType::Numerical(curve_value) => {
                 if curve_value.abs() <= 0.001 {
                     linlin(time, last_time, stage_time, level0, level1)
@@ -262,15 +278,9 @@ impl Env {
                     level0 + (level1 - level0) * (numer / denom)
                 }
             }
-            EnvCurveType::Sine => {
-                linsin(time, last_time, stage_time, level0, level1)
-            }
-            EnvCurveType::Exponential => {
-                linexp(time, last_time, stage_time, level0, level1)
-            }
-            EnvCurveType::Welch => {
-                linwelch(time, last_time, stage_time, level0, level1)
-            }
+            EnvCurveType::Sine => linsin(time, last_time, stage_time, level0, level1),
+            EnvCurveType::Exponential => linexp(time, last_time, stage_time, level0, level1),
+            EnvCurveType::Welch => linwelch(time, last_time, stage_time, level0, level1),
             EnvCurveType::Step | EnvCurveType::Empty => level1,
         }
     }

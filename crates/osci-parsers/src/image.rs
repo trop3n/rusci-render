@@ -1,4 +1,4 @@
-use osci_core::shape::{Line, Shape, normalize_shapes_to};
+use osci_core::shape::{normalize_shapes_to, Line, Shape};
 
 /// Configuration for the image-to-shapes parser.
 pub struct ImageConfig {
@@ -27,8 +27,7 @@ impl Default for ImageConfig {
 /// the brightness threshold. Each run becomes a `Line` shape. The resulting
 /// coordinates are normalized to the [-1, 1] range.
 pub fn parse_image(data: &[u8], config: &ImageConfig) -> Result<Vec<Box<dyn Shape>>, String> {
-    let img = image::load_from_memory(data)
-        .map_err(|e| format!("failed to load image: {e}"))?;
+    let img = image::load_from_memory(data).map_err(|e| format!("failed to load image: {e}"))?;
     let gray = img.to_luma8();
     let width = gray.width();
     let height = gray.height();
@@ -125,10 +124,7 @@ mod tests {
         // Create a 4x2 grayscale image:
         // Row 0: [255, 255, 0, 0]  -> one segment from x=0 to x=2
         // Row 1: [0, 0, 255, 255]  -> one segment from x=2 to x=4
-        let pixels: Vec<u8> = vec![
-            255, 255, 0, 0,
-            0, 0, 255, 255,
-        ];
+        let pixels: Vec<u8> = vec![255, 255, 0, 0, 0, 0, 255, 255];
         let gray = image::GrayImage::from_raw(4, 2, pixels).unwrap();
 
         let config = ImageConfig {

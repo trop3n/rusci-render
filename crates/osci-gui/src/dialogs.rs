@@ -78,9 +78,7 @@ pub fn draw_shortcuts_dialog(ctx: &egui::Context, open: &mut bool) {
                         ("Ctrl+Shift+S", "Save Project As"),
                     ];
                     for (key, desc) in shortcuts {
-                        ui.label(
-                            egui::RichText::new(key).monospace(),
-                        );
+                        ui.label(egui::RichText::new(key).monospace());
                         ui.label(desc);
                         ui.end_row();
                     }

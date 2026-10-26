@@ -35,11 +35,7 @@ pub fn parse_audio(data: &[u8]) -> Result<AudioData, String> {
         .ok_or_else(|| "no audio track found".to_string())?;
     let track_id = track.id;
     let sample_rate = track.codec_params.sample_rate.unwrap_or(44100);
-    let num_channels = track
-        .codec_params
-        .channels
-        .map(|c| c.count())
-        .unwrap_or(2);
+    let num_channels = track.codec_params.channels.map(|c| c.count()).unwrap_or(2);
 
     let mut decoder = symphonia::default::get_codecs()
         .make(&track.codec_params, &DecoderOptions::default())

@@ -255,7 +255,11 @@ pub fn animate_parameter(
         // LFO path
         let (lfo_min, lfo_max) = param.lfo_range();
         let lfo_range = lfo_max - lfo_min;
-        let phase_inc = if sample_rate > 0.0 { param.lfo_rate / sample_rate } else { 0.0 };
+        let phase_inc = if sample_rate > 0.0 {
+            param.lfo_rate / sample_rate
+        } else {
+            0.0
+        };
 
         let two_pi = std::f32::consts::TAU;
         let pi = std::f32::consts::PI;

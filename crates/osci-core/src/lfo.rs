@@ -83,10 +83,18 @@ impl LfoState {
                 s * lfo_range + lfo_min
             }
             LfoType::Square => {
-                if phase < 0.5 { lfo_max } else { lfo_min }
+                if phase < 0.5 {
+                    lfo_max
+                } else {
+                    lfo_min
+                }
             }
             LfoType::Seesaw => {
-                let tri = if phase < 0.5 { phase * 2.0 } else { (1.0 - phase) * 2.0 };
+                let tri = if phase < 0.5 {
+                    phase * 2.0
+                } else {
+                    (1.0 - phase) * 2.0
+                };
                 let x = tri.clamp(0.0, 1.0);
                 let soft = x * x * (3.0 - 2.0 * x);
                 soft * lfo_range + lfo_min
@@ -95,12 +103,8 @@ impl LfoState {
                 let tri = 1.0 - (2.0 * phase - 1.0).abs();
                 tri * lfo_range + lfo_min
             }
-            LfoType::Sawtooth => {
-                phase * lfo_range + lfo_min
-            }
-            LfoType::ReverseSawtooth => {
-                (1.0 - phase) * lfo_range + lfo_min
-            }
+            LfoType::Sawtooth => phase * lfo_range + lfo_min,
+            LfoType::ReverseSawtooth => (1.0 - phase) * lfo_range + lfo_min,
             _ => lfo_min,
         }
     }

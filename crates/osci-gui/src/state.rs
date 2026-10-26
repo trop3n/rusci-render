@@ -49,9 +49,7 @@ pub enum UiCommand {
         enabled: bool,
     },
     /// Load a project: replace the entire effect chain with the given effects.
-    LoadProject {
-        effects: Vec<LoadedEffect>,
-    },
+    LoadProject { effects: Vec<LoadedEffect> },
     /// Clear the current project (remove all effects).
     ClearProject,
     /// Start video recording with the given output path and dimensions.

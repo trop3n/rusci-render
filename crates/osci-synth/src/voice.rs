@@ -44,7 +44,13 @@ impl VoiceEffect {
     pub fn animate(&mut self, block_size: usize, sample_rate: f32, volume_buffer: Option<&[f32]>) {
         let mut buf = vec![0.0f32; block_size];
         for (i, param) in self.parameters.iter_mut().enumerate() {
-            animate_parameter(param, &mut buf, sample_rate, &mut self.current_values[i], volume_buffer);
+            animate_parameter(
+                param,
+                &mut buf,
+                sample_rate,
+                &mut self.current_values[i],
+                volume_buffer,
+            );
             self.animated_values[i] = buf[block_size - 1];
         }
     }
@@ -252,7 +258,8 @@ impl ShapeVoice {
         // First pass: generate raw samples + frequency/volume buffers
         for i in 0..num_samples {
             let length_increment = if self.sample_rate > 0.0 {
-                (frame_length / (self.sample_rate / self.actual_frequency)).max(MIN_LENGTH_INCREMENT)
+                (frame_length / (self.sample_rate / self.actual_frequency))
+                    .max(MIN_LENGTH_INCREMENT)
             } else {
                 MIN_LENGTH_INCREMENT
             };
@@ -337,7 +344,10 @@ impl ShapeVoice {
                 let input = Point::new(self.voice_x[i], self.voice_y[i], self.voice_z[i]);
                 let external = Point::ZERO;
 
-                let output = effect.application.apply(i, input, external, &values, sample_rate, freq);
+                let output =
+                    effect
+                        .application
+                        .apply(i, input, external, &values, sample_rate, freq);
 
                 self.voice_x[i] = output.x;
                 self.voice_y[i] = output.y;

@@ -1,5 +1,5 @@
 use crate::point::Point;
-use crate::shape::{Shape, Line, total_length};
+use crate::shape::{total_length, Line, Shape};
 
 /// A frame is a collection of shapes that represents one "image" to be drawn.
 ///
@@ -13,11 +13,17 @@ pub struct Frame {
 impl Frame {
     pub fn new(shapes: Vec<Box<dyn Shape>>) -> Self {
         let total_length = total_length(&shapes);
-        Self { shapes, total_length }
+        Self {
+            shapes,
+            total_length,
+        }
     }
 
     pub fn empty() -> Self {
-        Self { shapes: Vec::new(), total_length: 0.0 }
+        Self {
+            shapes: Vec::new(),
+            total_length: 0.0,
+        }
     }
 
     /// Recompute the cached total length.
@@ -55,14 +61,8 @@ impl Frame {
             if shape.shape_type() == "Line" {
                 let start = shape.next_vector(0.0);
                 let end = shape.next_vector(1.0);
-                let new_start = Point::xy(
-                    start.x.clamp(-1.0, 1.0),
-                    start.y.clamp(-1.0, 1.0),
-                );
-                let new_end = Point::xy(
-                    end.x.clamp(-1.0, 1.0),
-                    end.y.clamp(-1.0, 1.0),
-                );
+                let new_start = Point::xy(start.x.clamp(-1.0, 1.0), start.y.clamp(-1.0, 1.0));
+                let new_end = Point::xy(end.x.clamp(-1.0, 1.0), end.y.clamp(-1.0, 1.0));
                 *shape = Box::new(Line::from_points(new_start, new_end));
             }
         }

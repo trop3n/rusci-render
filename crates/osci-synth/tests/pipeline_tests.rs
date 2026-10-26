@@ -2,9 +2,7 @@ use osci_core::envelope::Env;
 use osci_core::shape::Line;
 use osci_core::Point;
 use osci_synth::voice::VoiceEffect;
-use osci_synth::{
-    FrameProducer, MidiEvent, ShapeSound, StaticFrameSource, Synthesizer,
-};
+use osci_synth::{FrameProducer, MidiEvent, ShapeSound, StaticFrameSource, Synthesizer};
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -15,10 +13,7 @@ const BLOCK_SIZE: usize = 512;
 fn make_sound_with_line() -> ShapeSound {
     let mut sound = ShapeSound::new(4);
     let tx = sound.sender();
-    let line = Line::from_points(
-        Point::new(-1.0, 0.0, 0.0),
-        Point::new(1.0, 0.0, 0.0),
-    );
+    let line = Line::from_points(Point::new(-1.0, 0.0, 0.0), Point::new(1.0, 0.0, 0.0));
     tx.send(vec![Box::new(line)]).unwrap();
     sound.update_frame();
     sound
@@ -68,7 +63,10 @@ fn basic_render_produces_output() {
     let mut sound = make_sound_with_line();
 
     synth.handle_midi_event(
-        MidiEvent::NoteOn { note: 69, velocity: 1.0 },
+        MidiEvent::NoteOn {
+            note: 69,
+            velocity: 1.0,
+        },
         &mut sound,
     );
 
@@ -101,7 +99,10 @@ fn output_is_finite_and_bounded() {
     let mut sound = make_sound_with_square();
 
     synth.handle_midi_event(
-        MidiEvent::NoteOn { note: 60, velocity: 1.0 },
+        MidiEvent::NoteOn {
+            note: 60,
+            velocity: 1.0,
+        },
         &mut sound,
     );
 
@@ -117,7 +118,10 @@ fn output_is_finite_and_bounded() {
             assert!(
                 x[i].abs() < 10.0 && y[i].abs() < 10.0 && z[i].abs() < 10.0,
                 "sample {} out of bounds: ({}, {}, {})",
-                i, x[i], y[i], z[i]
+                i,
+                x[i],
+                y[i],
+                z[i]
             );
         }
     }
@@ -132,7 +136,10 @@ fn multi_voice_produces_combined_output() {
 
     // Single note
     synth.handle_midi_event(
-        MidiEvent::NoteOn { note: 60, velocity: 1.0 },
+        MidiEvent::NoteOn {
+            note: 60,
+            velocity: 1.0,
+        },
         &mut sound,
     );
     let (x1, _, _) = render_block(&mut synth, &mut sound, BLOCK_SIZE);
@@ -140,7 +147,10 @@ fn multi_voice_produces_combined_output() {
 
     // Reset
     synth.handle_midi_event(
-        MidiEvent::NoteOff { note: 60, velocity: 0.0 },
+        MidiEvent::NoteOff {
+            note: 60,
+            velocity: 0.0,
+        },
         &mut sound,
     );
 
@@ -150,11 +160,17 @@ fn multi_voice_produces_combined_output() {
 
     // Two simultaneous notes
     synth.handle_midi_event(
-        MidiEvent::NoteOn { note: 60, velocity: 1.0 },
+        MidiEvent::NoteOn {
+            note: 60,
+            velocity: 1.0,
+        },
         &mut sound,
     );
     synth.handle_midi_event(
-        MidiEvent::NoteOn { note: 67, velocity: 1.0 },
+        MidiEvent::NoteOn {
+            note: 67,
+            velocity: 1.0,
+        },
         &mut sound,
     );
 
@@ -182,18 +198,27 @@ fn voice_lifecycle_note_on_off_release() {
     let mut sound = make_sound_with_line();
 
     synth.handle_midi_event(
-        MidiEvent::NoteOn { note: 69, velocity: 1.0 },
+        MidiEvent::NoteOn {
+            note: 69,
+            velocity: 1.0,
+        },
         &mut sound,
     );
     assert_eq!(synth.active_voice_count(), 1);
 
     // Render a block during sustain
     let (x, _, _) = render_block(&mut synth, &mut sound, BLOCK_SIZE);
-    assert!(has_nonzero(&x, 0.001), "voice should produce output while sustained");
+    assert!(
+        has_nonzero(&x, 0.001),
+        "voice should produce output while sustained"
+    );
 
     // Note off — voice enters release
     synth.handle_midi_event(
-        MidiEvent::NoteOff { note: 69, velocity: 0.0 },
+        MidiEvent::NoteOff {
+            note: 69,
+            velocity: 0.0,
+        },
         &mut sound,
     );
 
@@ -229,7 +254,10 @@ fn voice_effect_translate_modifies_output() {
     let mut sound_plain = make_sound_with_line();
 
     synth_plain.handle_midi_event(
-        MidiEvent::NoteOn { note: 69, velocity: 1.0 },
+        MidiEvent::NoteOn {
+            note: 69,
+            velocity: 1.0,
+        },
         &mut sound_plain,
     );
     let (x_plain, _, _) = render_block(&mut synth_plain, &mut sound_plain, BLOCK_SIZE);
@@ -241,7 +269,10 @@ fn voice_effect_translate_modifies_output() {
     let mut sound_fx = make_sound_with_line();
 
     synth_fx.handle_midi_event(
-        MidiEvent::NoteOn { note: 69, velocity: 1.0 },
+        MidiEvent::NoteOn {
+            note: 69,
+            velocity: 1.0,
+        },
         &mut sound_fx,
     );
 
@@ -251,11 +282,7 @@ fn voice_effect_translate_modifies_output() {
     // Set translateX to 0.5
     params[0].value = 0.5;
     params[0].default_value = 0.5;
-    let voice_effect = VoiceEffect::new(
-        "translate",
-        (translate_entry.constructor)(),
-        params,
-    );
+    let voice_effect = VoiceEffect::new("translate", (translate_entry.constructor)(), params);
     if let Some(voice) = synth_fx.voice_mut(0) {
         voice.effects.push(voice_effect);
     }
@@ -263,7 +290,11 @@ fn voice_effect_translate_modifies_output() {
     let (x_fx, _, _) = render_block(&mut synth_fx, &mut sound_fx, BLOCK_SIZE);
 
     // The effected output should differ from the plain output
-    let diff: f32 = x_plain.iter().zip(x_fx.iter()).map(|(a, b)| (a - b).abs()).sum();
+    let diff: f32 = x_plain
+        .iter()
+        .zip(x_fx.iter())
+        .map(|(a, b)| (a - b).abs())
+        .sum();
     assert!(
         diff > 0.1,
         "translate effect should change X output, total diff={diff}"
@@ -278,7 +309,10 @@ fn voice_effect_volume_attenuates() {
     let mut sound = make_sound_with_line();
 
     synth.handle_midi_event(
-        MidiEvent::NoteOn { note: 69, velocity: 1.0 },
+        MidiEvent::NoteOn {
+            note: 69,
+            velocity: 1.0,
+        },
         &mut sound,
     );
 
@@ -287,11 +321,7 @@ fn voice_effect_volume_attenuates() {
     let mut params = (volume_entry.parameters)();
     params[0].value = 0.0;
     params[0].default_value = 0.0;
-    let voice_effect = VoiceEffect::new(
-        "volume",
-        (volume_entry.constructor)(),
-        params,
-    );
+    let voice_effect = VoiceEffect::new("volume", (volume_entry.constructor)(), params);
     if let Some(voice) = synth.voice_mut(0) {
         voice.effects.push(voice_effect);
     }
@@ -309,10 +339,7 @@ fn voice_effect_volume_attenuates() {
 
 #[test]
 fn frame_producer_feeds_synthesizer() {
-    let line = Line::from_points(
-        Point::new(-1.0, -1.0, 0.0),
-        Point::new(1.0, 1.0, 0.0),
-    );
+    let line = Line::from_points(Point::new(-1.0, -1.0, 0.0), Point::new(1.0, 1.0, 0.0));
     let source = StaticFrameSource::new(vec![Box::new(line)]);
 
     let mut sound = ShapeSound::new(4);
@@ -326,7 +353,10 @@ fn frame_producer_feeds_synthesizer() {
 
     let mut synth = Synthesizer::new(4, SAMPLE_RATE);
     synth.handle_midi_event(
-        MidiEvent::NoteOn { note: 69, velocity: 1.0 },
+        MidiEvent::NoteOn {
+            note: 69,
+            velocity: 1.0,
+        },
         &mut sound,
     );
 
@@ -340,7 +370,10 @@ fn frame_producer_feeds_synthesizer() {
         }
     }
 
-    assert!(any_nonzero, "frame producer pipeline should produce non-zero output");
+    assert!(
+        any_nonzero,
+        "frame producer pipeline should produce non-zero output"
+    );
 
     // Drop sound first to disconnect the channel, allowing the producer to exit
     drop(sound);
@@ -372,7 +405,10 @@ fn svg_to_audio_e2e() {
 
     let mut synth = Synthesizer::new(4, SAMPLE_RATE);
     synth.handle_midi_event(
-        MidiEvent::NoteOn { note: 69, velocity: 1.0 },
+        MidiEvent::NoteOn {
+            note: 69,
+            velocity: 1.0,
+        },
         &mut sound,
     );
 
@@ -399,7 +435,10 @@ fn frequency_approximation_from_zero_crossings() {
     let mut sound = make_sound_with_line();
 
     synth.handle_midi_event(
-        MidiEvent::NoteOn { note: 69, velocity: 1.0 },
+        MidiEvent::NoteOn {
+            note: 69,
+            velocity: 1.0,
+        },
         &mut sound,
     );
 

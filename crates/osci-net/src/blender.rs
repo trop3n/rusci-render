@@ -62,7 +62,9 @@ pub async fn start_blender_server(
                 let sink_clone = FrameSink::new(sink.sender());
                 let shutdown_clone = shutdown.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = handle_blender_connection(stream, sink_clone, shutdown_clone).await {
+                    if let Err(e) =
+                        handle_blender_connection(stream, sink_clone, shutdown_clone).await
+                    {
                         log::warn!("Blender connection error: {}", e);
                     }
                     log::info!("Blender client disconnected: {}", peer);
@@ -123,7 +125,9 @@ fn append(message: &mut Vec<u8>, part: &[u8]) -> Result<(), String> {
         return Err("message contains a NUL byte".to_string());
     }
     if message.len() + part.len() > MAX_MESSAGE_BYTES {
-        return Err(format!("message is over the {MAX_MESSAGE_BYTES}-byte limit"));
+        return Err(format!(
+            "message is over the {MAX_MESSAGE_BYTES}-byte limit"
+        ));
     }
     message.extend_from_slice(part);
     Ok(())
@@ -186,7 +190,9 @@ mod tests {
         out.extend(b"DONE    FRAME   focalLen");
         out.extend((-0.05f64 * 50.0).to_le_bytes());
         out.extend(b"OBJECTS OBJECT  MATRIX  ");
-        for v in [1.0f64, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0] {
+        for v in [
+            1.0f64, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+        ] {
             out.extend(v.to_le_bytes());
         }
         out.extend(b"DONE    STROKES STROKE  vertexCt");
@@ -201,7 +207,9 @@ mod tests {
 
     /// One line exactly as the add-on sends it: `base64.b64encode(...) + b"\n"`.
     fn addon_line() -> Vec<u8> {
-        let mut line = base64::engine::general_purpose::STANDARD.encode(addon_gpla()).into_bytes();
+        let mut line = base64::engine::general_purpose::STANDARD
+            .encode(addon_gpla())
+            .into_bytes();
         line.push(b'\n');
         line
     }
@@ -340,23 +348,39 @@ mod tests {
         let (tx, _rx) = bounded(1);
         let (_client, server) = tokio::io::duplex(64);
         let shutdown = Arc::new(AtomicBool::new(false));
-        let handler = tokio::spawn(handle_blender_connection(server, FrameSink::new(tx), shutdown.clone()));
+        let handler = tokio::spawn(handle_blender_connection(
+            server,
+            FrameSink::new(tx),
+            shutdown.clone(),
+        ));
         tokio::time::sleep(Duration::from_millis(50)).await;
         shutdown.store(true, Ordering::Relaxed);
         let result = tokio::time::timeout(Duration::from_secs(2), handler).await;
-        result.expect("handler kept running after shutdown").unwrap().unwrap();
+        result
+            .expect("handler kept running after shutdown")
+            .unwrap()
+            .unwrap();
     }
 
     #[tokio::test]
     async fn server_accepts_addon_over_tcp() {
         // Find a free port, then run the real server on it.
-        let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
-        let config = NetConfig { blender_port: port, ..NetConfig::default() };
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let config = NetConfig {
+            blender_port: port,
+            ..NetConfig::default()
+        };
         let (tx, rx) = bounded(8);
         let shutdown = Arc::new(AtomicBool::new(false));
         let server = {
             let shutdown = shutdown.clone();
-            tokio::spawn(async move { start_blender_server(&config, FrameSink::new(tx), shutdown).await })
+            tokio::spawn(async move {
+                start_blender_server(&config, FrameSink::new(tx), shutdown).await
+            })
         };
 
         let mut client = None;
@@ -384,6 +408,10 @@ mod tests {
 
         client.write_all(b"CLOSE\n").await.unwrap();
         shutdown.store(true, Ordering::Relaxed);
-        tokio::time::timeout(Duration::from_secs(2), server).await.unwrap().unwrap().unwrap();
+        tokio::time::timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
     }
 }

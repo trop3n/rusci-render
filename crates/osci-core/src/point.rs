@@ -1,4 +1,6 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::ops::{
+    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
+};
 
 /// A point in 3D space with optional RGB color channels.
 ///
@@ -35,11 +37,25 @@ impl Point {
 
     pub fn new(x: f32, y: f32, z: f32) -> Self {
         // Legacy: z replicated to RGB
-        Self { x, y, z, r: z, g: z, b: z }
+        Self {
+            x,
+            y,
+            z,
+            r: z,
+            g: z,
+            b: z,
+        }
     }
 
     pub fn xy(x: f32, y: f32) -> Self {
-        Self { x, y, z: 0.0, r: 0.0, g: 0.0, b: 0.0 }
+        Self {
+            x,
+            y,
+            z: 0.0,
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+        }
     }
 
     pub fn with_rgb(x: f32, y: f32, z: f32, r: f32, g: f32, b: f32) -> Self {
@@ -47,12 +63,26 @@ impl Point {
     }
 
     pub fn splat(val: f32) -> Self {
-        Self { x: val, y: val, z: 0.0, r: 0.0, g: 0.0, b: 0.0 }
+        Self {
+            x: val,
+            y: val,
+            z: 0.0,
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+        }
     }
 
     /// Attach color to an existing point (non-mutating)
     pub fn with_colour(&self, r: f32, g: f32, b: f32) -> Self {
-        Self { x: self.x, y: self.y, z: self.z, r, g, b }
+        Self {
+            x: self.x,
+            y: self.y,
+            z: self.z,
+            r,
+            g,
+            b,
+        }
     }
 
     pub fn magnitude(&self) -> f32 {
@@ -120,8 +150,12 @@ impl Add for Point {
     type Output = Point;
     fn add(self, rhs: Point) -> Point {
         Point::with_rgb(
-            self.x + rhs.x, self.y + rhs.y, self.z + rhs.z,
-            self.r + rhs.r, self.g + rhs.g, self.b + rhs.b,
+            self.x + rhs.x,
+            self.y + rhs.y,
+            self.z + rhs.z,
+            self.r + rhs.r,
+            self.g + rhs.g,
+            self.b + rhs.b,
         )
     }
 }
@@ -130,7 +164,14 @@ impl Add for Point {
 impl Add<f32> for Point {
     type Output = Point;
     fn add(self, rhs: f32) -> Point {
-        Point::with_rgb(self.x + rhs, self.y + rhs, self.z + rhs, self.r, self.g, self.b)
+        Point::with_rgb(
+            self.x + rhs,
+            self.y + rhs,
+            self.z + rhs,
+            self.r,
+            self.g,
+            self.b,
+        )
     }
 }
 
@@ -138,7 +179,14 @@ impl Add<f32> for Point {
 impl Add<Point> for f32 {
     type Output = Point;
     fn add(self, rhs: Point) -> Point {
-        Point::with_rgb(rhs.x + self, rhs.y + self, rhs.z + self, rhs.r, rhs.g, rhs.b)
+        Point::with_rgb(
+            rhs.x + self,
+            rhs.y + self,
+            rhs.z + self,
+            rhs.r,
+            rhs.g,
+            rhs.b,
+        )
     }
 }
 
@@ -147,8 +195,12 @@ impl Sub for Point {
     type Output = Point;
     fn sub(self, rhs: Point) -> Point {
         Point::with_rgb(
-            self.x - rhs.x, self.y - rhs.y, self.z - rhs.z,
-            self.r - rhs.r, self.g - rhs.g, self.b - rhs.b,
+            self.x - rhs.x,
+            self.y - rhs.y,
+            self.z - rhs.z,
+            self.r - rhs.r,
+            self.g - rhs.g,
+            self.b - rhs.b,
         )
     }
 }
@@ -157,7 +209,14 @@ impl Sub for Point {
 impl Sub<f32> for Point {
     type Output = Point;
     fn sub(self, rhs: f32) -> Point {
-        Point::with_rgb(self.x - rhs, self.y - rhs, self.z - rhs, self.r, self.g, self.b)
+        Point::with_rgb(
+            self.x - rhs,
+            self.y - rhs,
+            self.z - rhs,
+            self.r,
+            self.g,
+            self.b,
+        )
     }
 }
 
@@ -174,8 +233,12 @@ impl Mul for Point {
     type Output = Point;
     fn mul(self, rhs: Point) -> Point {
         Point::with_rgb(
-            self.x * rhs.x, self.y * rhs.y, self.z * rhs.z,
-            self.r * rhs.r, self.g * rhs.g, self.b * rhs.b,
+            self.x * rhs.x,
+            self.y * rhs.y,
+            self.z * rhs.z,
+            self.r * rhs.r,
+            self.g * rhs.g,
+            self.b * rhs.b,
         )
     }
 }
@@ -184,7 +247,14 @@ impl Mul for Point {
 impl Mul<f32> for Point {
     type Output = Point;
     fn mul(self, rhs: f32) -> Point {
-        Point::with_rgb(self.x * rhs, self.y * rhs, self.z * rhs, self.r, self.g, self.b)
+        Point::with_rgb(
+            self.x * rhs,
+            self.y * rhs,
+            self.z * rhs,
+            self.r,
+            self.g,
+            self.b,
+        )
     }
 }
 
@@ -192,7 +262,14 @@ impl Mul<f32> for Point {
 impl Mul<Point> for f32 {
     type Output = Point;
     fn mul(self, rhs: Point) -> Point {
-        Point::with_rgb(rhs.x * self, rhs.y * self, rhs.z * self, rhs.r, rhs.g, rhs.b)
+        Point::with_rgb(
+            rhs.x * self,
+            rhs.y * self,
+            rhs.z * self,
+            rhs.r,
+            rhs.g,
+            rhs.b,
+        )
     }
 }
 
@@ -200,7 +277,14 @@ impl Mul<Point> for f32 {
 impl Div<f32> for Point {
     type Output = Point;
     fn div(self, rhs: f32) -> Point {
-        Point::with_rgb(self.x / rhs, self.y / rhs, self.z / rhs, self.r, self.g, self.b)
+        Point::with_rgb(
+            self.x / rhs,
+            self.y / rhs,
+            self.z / rhs,
+            self.r,
+            self.g,
+            self.b,
+        )
     }
 }
 

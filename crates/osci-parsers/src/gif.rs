@@ -1,4 +1,4 @@
-use osci_core::shape::{Shape, normalize_shapes_to};
+use osci_core::shape::{normalize_shapes_to, Shape};
 
 use super::image::ImageConfig;
 
@@ -41,7 +41,10 @@ pub fn parse_gif(data: &[u8], config: &ImageConfig) -> Result<GifFrames, String>
     let canvas_size = (global_width * global_height * 4) as usize;
     let mut canvas = vec![0u8; canvas_size];
 
-    while let Some(frame) = decoder.read_next_frame().map_err(|e| format!("GIF frame error: {e}"))? {
+    while let Some(frame) = decoder
+        .read_next_frame()
+        .map_err(|e| format!("GIF frame error: {e}"))?
+    {
         let frame_left = frame.left as u32;
         let frame_top = frame.top as u32;
         let frame_width = frame.width as u32;
@@ -83,12 +86,8 @@ pub fn parse_gif(data: &[u8], config: &ImageConfig) -> Result<GifFrames, String>
             .ok_or_else(|| "failed to create grayscale image from GIF frame".to_string())?;
 
         // Threshold scan to produce shapes
-        let mut shapes = crate::image::threshold_scan(
-            &gray_image,
-            global_width,
-            global_height,
-            config,
-        );
+        let mut shapes =
+            crate::image::threshold_scan(&gray_image, global_width, global_height, config);
 
         normalize_shapes_to(&mut shapes, global_width as f32, global_height as f32);
         frames.push(shapes);

@@ -140,15 +140,39 @@ pub struct Line {
 
 impl Line {
     pub fn new_2d(x1: f32, y1: f32, x2: f32, y2: f32) -> Self {
-        Self { x1, y1, z1: 0.0, x2, y2, z2: 0.0, cached_length: None }
+        Self {
+            x1,
+            y1,
+            z1: 0.0,
+            x2,
+            y2,
+            z2: 0.0,
+            cached_length: None,
+        }
     }
 
     pub fn new_3d(x1: f32, y1: f32, z1: f32, x2: f32, y2: f32, z2: f32) -> Self {
-        Self { x1, y1, z1, x2, y2, z2, cached_length: None }
+        Self {
+            x1,
+            y1,
+            z1,
+            x2,
+            y2,
+            z2,
+            cached_length: None,
+        }
     }
 
     pub fn from_points(p1: Point, p2: Point) -> Self {
-        Self { x1: p1.x, y1: p1.y, z1: p1.z, x2: p2.x, y2: p2.y, z2: p2.z, cached_length: None }
+        Self {
+            x1: p1.x,
+            y1: p1.y,
+            z1: p1.z,
+            x2: p2.x,
+            y2: p2.y,
+            z2: p2.z,
+            cached_length: None,
+        }
     }
 
     pub fn compute_length(x1: f32, y1: f32, z1: f32, x2: f32, y2: f32, z2: f32) -> f32 {
@@ -169,14 +193,22 @@ impl Shape for Line {
     }
 
     fn scale(&mut self, x: f32, y: f32, z: f32) {
-        self.x1 *= x; self.y1 *= y; self.z1 *= z;
-        self.x2 *= x; self.y2 *= y; self.z2 *= z;
+        self.x1 *= x;
+        self.y1 *= y;
+        self.z1 *= z;
+        self.x2 *= x;
+        self.y2 *= y;
+        self.z2 *= z;
         self.cached_length = None;
     }
 
     fn translate(&mut self, x: f32, y: f32, z: f32) {
-        self.x1 += x; self.y1 += y; self.z1 += z;
-        self.x2 += x; self.y2 += y; self.z2 += z;
+        self.x1 += x;
+        self.y1 += y;
+        self.z1 += z;
+        self.x2 += x;
+        self.y2 += y;
+        self.z2 += z;
     }
 
     fn length(&self) -> f32 {
@@ -212,7 +244,17 @@ pub struct CubicBezierCurve {
 
 impl CubicBezierCurve {
     pub fn new(x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32, x4: f32, y4: f32) -> Self {
-        Self { x1, y1, x2, y2, x3, y3, x4, y4, cached_length: None }
+        Self {
+            x1,
+            y1,
+            x2,
+            y2,
+            x3,
+            y3,
+            x4,
+            y4,
+            cached_length: None,
+        }
     }
 }
 
@@ -231,18 +273,26 @@ impl Shape for CubicBezierCurve {
     }
 
     fn scale(&mut self, x: f32, y: f32, _z: f32) {
-        self.x1 *= x; self.y1 *= y;
-        self.x2 *= x; self.y2 *= y;
-        self.x3 *= x; self.y3 *= y;
-        self.x4 *= x; self.y4 *= y;
+        self.x1 *= x;
+        self.y1 *= y;
+        self.x2 *= x;
+        self.y2 *= y;
+        self.x3 *= x;
+        self.y3 *= y;
+        self.x4 *= x;
+        self.y4 *= y;
         self.cached_length = None;
     }
 
     fn translate(&mut self, x: f32, y: f32, _z: f32) {
-        self.x1 += x; self.y1 += y;
-        self.x2 += x; self.y2 += y;
-        self.x3 += x; self.y3 += y;
-        self.x4 += x; self.y4 += y;
+        self.x1 += x;
+        self.y1 += y;
+        self.x2 += x;
+        self.y2 += y;
+        self.x3 += x;
+        self.y3 += y;
+        self.x4 += x;
+        self.y4 += y;
     }
 
     fn length(&self) -> f32 {
@@ -321,8 +371,23 @@ pub struct CircleArc {
 }
 
 impl CircleArc {
-    pub fn new(x: f32, y: f32, radius_x: f32, radius_y: f32, start_angle: f32, end_angle: f32) -> Self {
-        Self { x, y, radius_x, radius_y, start_angle, end_angle, cached_length: None }
+    pub fn new(
+        x: f32,
+        y: f32,
+        radius_x: f32,
+        radius_y: f32,
+        start_angle: f32,
+        end_angle: f32,
+    ) -> Self {
+        Self {
+            x,
+            y,
+            radius_x,
+            radius_y,
+            start_angle,
+            end_angle,
+            cached_length: None,
+        }
     }
 }
 

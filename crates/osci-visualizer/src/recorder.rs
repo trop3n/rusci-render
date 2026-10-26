@@ -60,10 +60,7 @@ impl RecorderHandle {
 }
 
 #[cfg(feature = "video")]
-fn encode_loop(
-    config: RecordConfig,
-    rx: mpsc::Receiver<CapturedFrame>,
-) -> Result<(), String> {
+fn encode_loop(config: RecordConfig, rx: mpsc::Receiver<CapturedFrame>) -> Result<(), String> {
     ffmpeg_next::init().map_err(|e| format!("ffmpeg init failed: {}", e))?;
 
     let mut octx = ffmpeg_next::format::output(&config.output_path)
@@ -163,9 +160,6 @@ fn encode_loop(
 }
 
 #[cfg(not(feature = "video"))]
-fn encode_loop(
-    _config: RecordConfig,
-    _rx: mpsc::Receiver<CapturedFrame>,
-) -> Result<(), String> {
+fn encode_loop(_config: RecordConfig, _rx: mpsc::Receiver<CapturedFrame>) -> Result<(), String> {
     Err("Video recording requires the 'video' feature (ffmpeg-next)".to_string())
 }

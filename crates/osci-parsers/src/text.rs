@@ -148,9 +148,16 @@ mod tests {
                 ((b.x - a.x).abs(), a.y)
             })
             .collect();
-        let widest = rows.iter().cloned().fold((0.0, 0.0), |m, r| if r.0 > m.0 { r } else { m });
+        let widest = rows
+            .iter()
+            .cloned()
+            .fold((0.0, 0.0), |m, r| if r.0 > m.0 { r } else { m });
         let mean_y = rows.iter().map(|r| r.1).sum::<f32>() / rows.len() as f32;
-        assert!(widest.1 > mean_y, "crossbar at y={} is below the stem (mean y={mean_y})", widest.1);
+        assert!(
+            widest.1 > mean_y,
+            "crossbar at y={} is below the stem (mean y={mean_y})",
+            widest.1
+        );
     }
 
     #[test]

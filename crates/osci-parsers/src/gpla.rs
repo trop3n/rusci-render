@@ -138,17 +138,23 @@ pub fn parse_json_frame(data: &[u8]) -> Result<Vec<Box<dyn Shape>>, String> {
         1.0
     }
 
-    let frame: JsonFrame =
-        serde_json::from_slice(data).map_err(|e| format!("Failed to parse GPLA JSON frame: {e}"))?;
+    let frame: JsonFrame = serde_json::from_slice(data)
+        .map_err(|e| format!("Failed to parse GPLA JSON frame: {e}"))?;
     for obj in &frame.objects {
         if obj.matrix.len() != 16 {
-            return Err(format!("GPLA object matrix has {} values, expected 16", obj.matrix.len()));
+            return Err(format!(
+                "GPLA object matrix has {} values, expected 16",
+                obj.matrix.len()
+            ));
         }
         if obj.vertices.iter().any(Vec::is_empty) {
             return Err("GPLA object has an empty stroke".to_string());
         }
     }
-    Ok(assemble_frame(&json_objects(&frame.objects), frame.focal_length))
+    Ok(assemble_frame(
+        &json_objects(&frame.objects),
+        frame.focal_length,
+    ))
 }
 
 fn json_objects(objects: &[GplaJsonObject]) -> Vec<GplaObject> {
@@ -158,7 +164,16 @@ fn json_objects(objects: &[GplaJsonObject]) -> Vec<GplaObject> {
             let strokes = obj
                 .vertices
                 .iter()
-                .map(|stroke| stroke.iter().map(|v| Vertex3 { x: v.x, y: v.y, z: v.z }).collect())
+                .map(|stroke| {
+                    stroke
+                        .iter()
+                        .map(|v| Vertex3 {
+                            x: v.x,
+                            y: v.y,
+                            z: v.z,
+                        })
+                        .collect()
+                })
                 .collect();
 
             let mut matrix = [0.0f64; 16];
@@ -242,7 +257,11 @@ impl Words<'_> {
     fn expect(&mut self, tag: &Tag) -> Result<(), String> {
         let got = self.next()?;
         if &got != tag {
-            return Err(format!("Expected {:?}, got {:?}", tag_str(tag), tag_str(&got)));
+            return Err(format!(
+                "Expected {:?}, got {:?}",
+                tag_str(tag),
+                tag_str(&got)
+            ));
         }
         Ok(())
     }
@@ -364,7 +383,9 @@ fn parse_binary_stroke(r: &mut Words) -> Result<Stroke, String> {
         } else if &tag == VERTICES {
             // Check against what's left before allocating.
             if count > (r.remaining() / 3) as u64 {
-                return Err(format!("GPLA stroke claims {count} vertices, more than the data holds"));
+                return Err(format!(
+                    "GPLA stroke claims {count} vertices, more than the data holds"
+                ));
             }
             stroke.reserve(count as usize);
             for _ in 0..count {
@@ -617,16 +638,40 @@ mod tests {
         // stroke 2: (1.1,0,0) -> (2,0,0)       close to stroke 0 end
         let strokes = vec![
             vec![
-                Vertex3 { x: 0.0, y: 0.0, z: 0.0 },
-                Vertex3 { x: 1.0, y: 0.0, z: 0.0 },
+                Vertex3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                Vertex3 {
+                    x: 1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
             ],
             vec![
-                Vertex3 { x: 10.0, y: 10.0, z: 10.0 },
-                Vertex3 { x: 11.0, y: 10.0, z: 10.0 },
+                Vertex3 {
+                    x: 10.0,
+                    y: 10.0,
+                    z: 10.0,
+                },
+                Vertex3 {
+                    x: 11.0,
+                    y: 10.0,
+                    z: 10.0,
+                },
             ],
             vec![
-                Vertex3 { x: 1.1, y: 0.0, z: 0.0 },
-                Vertex3 { x: 2.0, y: 0.0, z: 0.0 },
+                Vertex3 {
+                    x: 1.1,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                Vertex3 {
+                    x: 2.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
             ],
         ];
 
@@ -824,7 +869,10 @@ mod tests {
             vec![[1.0, 1.0, -1.0], [0.0, 1.0, -1.0], [0.0, 0.5, -1.0]],
         ];
         let frames = [
-            (FOCAL_50MM, vec![(IDENTITY, two_strokes.clone()), (IDENTITY, l_shape())]),
+            (
+                FOCAL_50MM,
+                vec![(IDENTITY, two_strokes.clone()), (IDENTITY, l_shape())],
+            ),
             (FOCAL_50MM, vec![]),
             (FOCAL_50MM, vec![(IDENTITY, l_shape())]),
         ];
@@ -842,7 +890,10 @@ mod tests {
         let far = vec![vec![[0.0, 1.0, -4.0], [0.0, 0.0, -4.0]]];
         let data = binary_gpla(
             24,
-            &[(FOCAL_50MM, vec![(IDENTITY, near)]), (FOCAL_50MM, vec![(IDENTITY, far)])],
+            &[
+                (FOCAL_50MM, vec![(IDENTITY, near)]),
+                (FOCAL_50MM, vec![(IDENTITY, far)]),
+            ],
         );
         let result = parse_gpla(&data).unwrap();
         assert_eq!(endpoints(&result.frames[0]), vec![[0.0, 1.25, 0.0, 0.0]]);
@@ -881,7 +932,10 @@ mod tests {
     fn truncated_binary_is_an_error_not_a_panic() {
         let data = binary_gpla(24, &[(FOCAL_50MM, vec![(IDENTITY, l_shape())])]);
         for len in 8..data.len() {
-            assert!(parse_gpla(&data[..len]).is_err(), "prefix of {len} bytes parsed");
+            assert!(
+                parse_gpla(&data[..len]).is_err(),
+                "prefix of {len} bytes parsed"
+            );
         }
     }
 
@@ -914,23 +968,34 @@ mod tests {
             "vertices":[[{"x":0,"y":1,"z":-5},{"x":0,"y":0,"z":-5},{"x":0.5,"y":0,"z":-5}]],
             "matrix":[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]}],"focalLength":-2.5}"#;
         let frame = parse_json_frame(json).unwrap();
-        assert_eq!(endpoints(&frame), vec![[0.0, 0.5, 0.0, 0.0], [0.0, 0.0, 0.25, 0.0]]);
+        assert_eq!(
+            endpoints(&frame),
+            vec![[0.0, 0.5, 0.0, 0.0], [0.0, 0.0, 0.25, 0.0]]
+        );
     }
 
     #[test]
     fn json_stream_frame_defaults_focal_length_to_one() {
         let json = br#"{"objects":[{"vertices":[[{"x":0,"y":0,"z":-1},{"x":1,"y":0,"z":-1}]],
             "matrix":[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]}]}"#;
-        assert_eq!(endpoints(&parse_json_frame(json).unwrap()), vec![[0.0, 0.0, -1.0, 0.0]]);
+        assert_eq!(
+            endpoints(&parse_json_frame(json).unwrap()),
+            vec![[0.0, 0.0, -1.0, 0.0]]
+        );
     }
 
     #[test]
     fn json_stream_frame_rejects_bad_objects() {
-        let short_matrix = br#"{"objects":[{"vertices":[[{"x":0,"y":0,"z":-1}]],"matrix":[1,0,0]}]}"#;
+        let short_matrix =
+            br#"{"objects":[{"vertices":[[{"x":0,"y":0,"z":-1}]],"matrix":[1,0,0]}]}"#;
         let empty_stroke = br#"{"objects":[{"vertices":[[]],
             "matrix":[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]}]}"#;
         for bad in [&short_matrix[..], &empty_stroke[..], b"{}", b"not json"] {
-            assert!(parse_json_frame(bad).is_err(), "{}", String::from_utf8_lossy(bad));
+            assert!(
+                parse_json_frame(bad).is_err(),
+                "{}",
+                String::from_utf8_lossy(bad)
+            );
         }
     }
 }

@@ -80,10 +80,9 @@ impl EffectApplication for MultiplexEffect {
 
         let total_positions = gfx * gfy * gfz;
 
-        let phase_val = self.phase.next_phase(
-            frequency as f64 / total_positions,
-            sample_rate as f64,
-        );
+        let phase_val = self
+            .phase
+            .next_phase(frequency as f64 / total_positions, sample_rate as f64);
         // Normalize phase from [-PI, PI] to [0, 1]
         let normalized_phase = (phase_val + PI) / TAU;
 

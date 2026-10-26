@@ -82,15 +82,13 @@ pub fn parse_file_typed(data: &[u8], file_type: FileType) -> Result<ParseResult,
             Ok(ParseResult::Shapes(shapes))
         }
         FileType::Text => {
-            let text = std::str::from_utf8(data)
-                .map_err(|e| format!("invalid UTF-8: {e}"))?;
+            let text = std::str::from_utf8(data).map_err(|e| format!("invalid UTF-8: {e}"))?;
             let config = crate::text::TextConfig::default();
             let shapes = crate::text::parse_text(text, &config)?;
             Ok(ParseResult::Shapes(shapes))
         }
         FileType::Lua => {
-            let script = std::str::from_utf8(data)
-                .map_err(|e| format!("invalid UTF-8: {e}"))?;
+            let script = std::str::from_utf8(data).map_err(|e| format!("invalid UTF-8: {e}"))?;
             Ok(ParseResult::LuaScript(script.to_string()))
         }
         FileType::Gpla => {
@@ -117,9 +115,7 @@ pub fn parse_file_typed(data: &[u8], file_type: FileType) -> Result<ParseResult,
             let audio = crate::audio::parse_audio(data)?;
             Ok(ParseResult::Audio(audio))
         }
-        FileType::Unknown => {
-            Err("unknown file type".to_string())
-        }
+        FileType::Unknown => Err("unknown file type".to_string()),
     }
 }
 

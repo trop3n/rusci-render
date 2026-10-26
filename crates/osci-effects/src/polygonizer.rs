@@ -60,7 +60,8 @@ impl EffectApplication for PolygonizerEffect {
         // Quantize z in the same stripe pattern
         let abs_z = z.abs();
         let new_z = if abs_z > 1e-10 {
-            let quantized_z = ((abs_z / stripe_size - stripe_phase).round() + stripe_phase) * stripe_size;
+            let quantized_z =
+                ((abs_z / stripe_size - stripe_phase).round() + stripe_phase) * stripe_size;
             quantized_z.max(0.0) * z.signum()
         } else {
             z

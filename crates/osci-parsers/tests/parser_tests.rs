@@ -1,4 +1,4 @@
-use osci_parsers::{parse_file, default_shapes, FileType, ParseResult};
+use osci_parsers::{default_shapes, parse_file, FileType, ParseResult};
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -83,7 +83,11 @@ fn obj_triangle_from_fixture() {
     if let ParseResult::Shapes(shapes) = result {
         assert!(!shapes.is_empty(), "OBJ triangle produced no shapes");
         // Triangle has 3 edges
-        assert!(shapes.len() >= 3, "OBJ triangle should have at least 3 edges, got {}", shapes.len());
+        assert!(
+            shapes.len() >= 3,
+            "OBJ triangle should have at least 3 edges, got {}",
+            shapes.len()
+        );
         assert!(
             shapes_bounded(&shapes, 2.0),
             "OBJ triangle shapes out of normalized bounds"
@@ -201,7 +205,10 @@ fn default_shapes_is_square() {
 fn default_shapes_total_length_positive() {
     let shapes = default_shapes();
     let total: f32 = shapes.iter().map(|s| s.length()).sum();
-    assert!(total > 0.0, "default shapes should have positive total length");
+    assert!(
+        total > 0.0,
+        "default shapes should have positive total length"
+    );
 }
 
 // ── 6. Error handling ────────────────────────────────────────────
@@ -230,5 +237,8 @@ fn invalid_obj_returns_error_or_empty() {
 fn invalid_utf8_text_returns_error() {
     let bad_bytes: &[u8] = &[0xFF, 0xFE, 0x80, 0x81];
     let result = parse_file(bad_bytes, "txt");
-    assert!(result.is_err(), "invalid UTF-8 should return Err for text format");
+    assert!(
+        result.is_err(),
+        "invalid UTF-8 should return Err for text format"
+    );
 }

@@ -32,12 +32,7 @@ pub fn draw_gpu_scope(ui: &mut egui::Ui, vis: &VisBuffer, scope_state: Arc<Mutex
         let gl = painter.gl();
 
         let vp = info.viewport_in_pixels();
-        let viewport = [
-            vp.left_px,
-            vp.from_bottom_px,
-            vp.width_px,
-            vp.height_px,
-        ];
+        let viewport = [vp.left_px, vp.from_bottom_px, vp.width_px, vp.height_px];
 
         let mut state = scope_state.lock().unwrap();
 

@@ -6,18 +6,17 @@
 
 #[cfg(feature = "lua")]
 mod inner {
-    use mlua::{Lua, Function, Result as LuaResult, Value, MultiValue};
+    use mlua::{Function, Lua, MultiValue, Result as LuaResult, Value};
     use osci_core::Point;
 
     const NUM_SLIDERS: usize = 26;
     const MAX_INSTRUCTIONS: u32 = 5_000_000;
 
     const SLIDER_NAMES: [&str; NUM_SLIDERS] = [
-        "slider_a", "slider_b", "slider_c", "slider_d", "slider_e", "slider_f",
-        "slider_g", "slider_h", "slider_i", "slider_j", "slider_k", "slider_l",
-        "slider_m", "slider_n", "slider_o", "slider_p", "slider_q", "slider_r",
-        "slider_s", "slider_t", "slider_u", "slider_v", "slider_w", "slider_x",
-        "slider_y", "slider_z",
+        "slider_a", "slider_b", "slider_c", "slider_d", "slider_e", "slider_f", "slider_g",
+        "slider_h", "slider_i", "slider_j", "slider_k", "slider_l", "slider_m", "slider_n",
+        "slider_o", "slider_p", "slider_q", "slider_r", "slider_s", "slider_t", "slider_u",
+        "slider_v", "slider_w", "slider_x", "slider_y", "slider_z",
     ];
 
     /// Variables exposed to Lua scripts.
@@ -159,16 +158,17 @@ mod inner {
             let globals = lua.globals();
 
             // osci_line(phase, point1, point2) -> {x, y, z}
-            let line_fn = lua.create_function(|_, (phase, p1, p2): (f64, Vec<f64>, Vec<f64>)| {
-                let t = phase / std::f64::consts::TAU;
-                let x1 = p1.first().copied().unwrap_or(-1.0);
-                let y1 = p1.get(1).copied().unwrap_or(-1.0);
-                let x2 = p2.first().copied().unwrap_or(1.0);
-                let y2 = p2.get(1).copied().unwrap_or(1.0);
-                let x = x1 + (x2 - x1) * t;
-                let y = y1 + (y2 - y1) * t;
-                Ok(vec![x, y])
-            })?;
+            let line_fn =
+                lua.create_function(|_, (phase, p1, p2): (f64, Vec<f64>, Vec<f64>)| {
+                    let t = phase / std::f64::consts::TAU;
+                    let x1 = p1.first().copied().unwrap_or(-1.0);
+                    let y1 = p1.get(1).copied().unwrap_or(-1.0);
+                    let x2 = p2.first().copied().unwrap_or(1.0);
+                    let y2 = p2.get(1).copied().unwrap_or(1.0);
+                    let x = x1 + (x2 - x1) * t;
+                    let y = y1 + (y2 - y1) * t;
+                    Ok(vec![x, y])
+                })?;
             globals.set("osci_line", line_fn)?;
 
             // osci_circle(phase, radius) -> {x, y}
@@ -220,7 +220,9 @@ pub mod stub {
     pub struct LuaVariables;
 
     impl Default for LuaVariables {
-        fn default() -> Self { Self }
+        fn default() -> Self {
+            Self
+        }
     }
 
     impl LuaVariables {

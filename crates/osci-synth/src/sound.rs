@@ -50,10 +50,7 @@ impl ShapeSound {
 
     /// Clone the current frame's shapes for use by a voice.
     pub fn clone_frame(&self) -> Frame {
-        self.current_frame
-            .iter()
-            .map(|s| s.clone_shape())
-            .collect()
+        self.current_frame.iter().map(|s| s.clone_shape()).collect()
     }
 
     /// Get the current frame length.
@@ -78,10 +75,7 @@ mod tests {
         let mut sound = ShapeSound::new(4);
         let tx = sound.sender();
 
-        let line = Line::from_points(
-            Point::new(0.0, 0.0, 0.0),
-            Point::new(1.0, 0.0, 0.0),
-        );
+        let line = Line::from_points(Point::new(0.0, 0.0, 0.0), Point::new(1.0, 0.0, 0.0));
         let frame: Frame = vec![Box::new(line)];
         tx.send(frame).unwrap();
 

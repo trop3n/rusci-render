@@ -47,9 +47,7 @@ fn check_shortcuts(ctx: &egui::Context) -> MenuAction {
 }
 
 /// Collect the current synth parameter values into a snapshot.
-fn snapshot_synth_params(
-    params: &OsciPluginParamRefs,
-) -> project::SynthParamSnapshot {
+fn snapshot_synth_params(params: &OsciPluginParamRefs) -> project::SynthParamSnapshot {
     project::SynthParamSnapshot {
         volume: params.volume.unmodulated_plain_value(),
         frequency: params.frequency.unmodulated_plain_value(),
@@ -203,7 +201,9 @@ fn handle_open(
                         parameters: e.parameters,
                     })
                     .collect();
-                let _ = shared.command_tx.try_send(UiCommand::LoadProject { effects });
+                let _ = shared
+                    .command_tx
+                    .try_send(UiCommand::LoadProject { effects });
 
                 // Apply visualizer settings
                 if let Some(vis) = &proj.visualizer {
@@ -274,9 +274,9 @@ pub fn draw_editor(
     let shortcut_action = check_shortcuts(egui_ctx);
 
     // Menu bar at top
-    let menu_action = egui::TopBottomPanel::top("menu_bar").show(egui_ctx, |ui| {
-        menu_bar::draw_menu_bar(ui, menu_state)
-    }).inner;
+    let menu_action = egui::TopBottomPanel::top("menu_bar")
+        .show(egui_ctx, |ui| menu_bar::draw_menu_bar(ui, menu_state))
+        .inner;
 
     // Use whichever action was triggered (shortcut takes priority)
     let action = if shortcut_action != MenuAction::None {
@@ -289,13 +289,22 @@ pub fn draw_editor(
     match action {
         MenuAction::NewProject => handle_new(shared),
         MenuAction::OpenProject => handle_open(params, setter, shared, &scope_state),
-        MenuAction::SaveProject => handle_save(params, effect_snapshots, shared, &scope_state, false),
-        MenuAction::SaveProjectAs => handle_save(params, effect_snapshots, shared, &scope_state, true),
+        MenuAction::SaveProject => {
+            handle_save(params, effect_snapshots, shared, &scope_state, false)
+        }
+        MenuAction::SaveProjectAs => {
+            handle_save(params, effect_snapshots, shared, &scope_state, true)
+        }
         MenuAction::None => {}
     }
 
     // Draw dialogs
-    let audio_info = shared.audio_info.lock().ok().map(|i| i.clone()).unwrap_or_default();
+    let audio_info = shared
+        .audio_info
+        .lock()
+        .ok()
+        .map(|i| i.clone())
+        .unwrap_or_default();
     dialogs::draw_about_dialog(egui_ctx, &mut menu_state.show_about);
     dialogs::draw_audio_info_dialog(egui_ctx, &mut menu_state.show_audio_info, &audio_info);
     dialogs::draw_shortcuts_dialog(egui_ctx, &mut menu_state.show_shortcuts);
@@ -307,26 +316,51 @@ pub fn draw_editor(
             ui.heading("Synth Controls");
             ui.separator();
 
-            ui.add(nih_plug_egui::widgets::ParamSlider::for_param(params.volume, setter));
-            ui.add(nih_plug_egui::widgets::ParamSlider::for_param(params.frequency, setter));
+            ui.add(nih_plug_egui::widgets::ParamSlider::for_param(
+                params.volume,
+                setter,
+            ));
+            ui.add(nih_plug_egui::widgets::ParamSlider::for_param(
+                params.frequency,
+                setter,
+            ));
 
             let prev_drone = *drone_active;
             ui.checkbox(drone_active, "Drone (continuous play, no MIDI required)");
             if *drone_active != prev_drone {
-                let _ = shared.command_tx.try_send(UiCommand::SetDroneEnabled(*drone_active));
+                let _ = shared
+                    .command_tx
+                    .try_send(UiCommand::SetDroneEnabled(*drone_active));
             }
 
             ui.add_space(8.0);
             ui.label("ADSR Envelope");
-            ui.add(nih_plug_egui::widgets::ParamSlider::for_param(params.attack, setter));
-            ui.add(nih_plug_egui::widgets::ParamSlider::for_param(params.decay, setter));
-            ui.add(nih_plug_egui::widgets::ParamSlider::for_param(params.sustain, setter));
-            ui.add(nih_plug_egui::widgets::ParamSlider::for_param(params.release, setter));
+            ui.add(nih_plug_egui::widgets::ParamSlider::for_param(
+                params.attack,
+                setter,
+            ));
+            ui.add(nih_plug_egui::widgets::ParamSlider::for_param(
+                params.decay,
+                setter,
+            ));
+            ui.add(nih_plug_egui::widgets::ParamSlider::for_param(
+                params.sustain,
+                setter,
+            ));
+            ui.add(nih_plug_egui::widgets::ParamSlider::for_param(
+                params.release,
+                setter,
+            ));
 
             ui.add_space(12.0);
 
             // Effect Chain
-            effect_panel::draw_effect_chain(ui, effect_snapshots, &shared.command_tx, selected_effect_id);
+            effect_panel::draw_effect_chain(
+                ui,
+                effect_snapshots,
+                &shared.command_tx,
+                selected_effect_id,
+            );
 
             ui.add_space(12.0);
 

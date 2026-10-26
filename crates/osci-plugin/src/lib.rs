@@ -16,7 +16,10 @@ impl Default for EditorUiState {
     }
 }
 use osci_effects::registry::find_effect;
-use osci_gui::{AudioInfo, EditorSharedState, EffectSnapshot, GpuScopeState, MenuState, OsciPluginParamRefs, UiCommand, VisBuffer};
+use osci_gui::{
+    AudioInfo, EditorSharedState, EffectSnapshot, GpuScopeState, MenuState, OsciPluginParamRefs,
+    UiCommand, VisBuffer,
+};
 use osci_parsers::default_shapes;
 use osci_synth::{MidiEvent, ShapeSound, Synthesizer, VoiceEffect};
 use std::path::PathBuf;
@@ -109,11 +112,7 @@ impl Default for OsciParams {
                 },
             )
             .with_unit(" s"),
-            sustain: FloatParam::new(
-                "Sustain",
-                0.5,
-                FloatRange::Linear { min: 0.0, max: 1.0 },
-            ),
+            sustain: FloatParam::new("Sustain", 0.5, FloatRange::Linear { min: 0.0, max: 1.0 }),
             release: FloatParam::new(
                 "Release",
                 1.0,
@@ -274,7 +273,10 @@ impl Plugin for OsciPlugin {
         // Start network servers
         let frame_tx = self.sound.sender();
         let sink = osci_net::FrameSink::new(frame_tx);
-        self.net_server = Some(osci_net::NetServer::start(osci_net::NetConfig::default(), sink));
+        self.net_server = Some(osci_net::NetServer::start(
+            osci_net::NetConfig::default(),
+            sink,
+        ));
 
         true
     }
@@ -310,11 +312,8 @@ impl Plugin for OsciPlugin {
             match cmd {
                 UiCommand::AddEffect(id) => {
                     if let Some(entry) = find_effect(&id) {
-                        let effect = VoiceEffect::new(
-                            entry.id,
-                            (entry.constructor)(),
-                            (entry.parameters)(),
-                        );
+                        let effect =
+                            VoiceEffect::new(entry.id, (entry.constructor)(), (entry.parameters)());
                         self.effect_template.push(effect);
                         effects_changed = true;
                     }
@@ -422,7 +421,10 @@ impl Plugin for OsciPlugin {
                     if !enabled {
                         // Release the drone voice
                         self.synth.handle_midi_event(
-                            MidiEvent::NoteOff { note: 69, velocity: 0.0 },
+                            MidiEvent::NoteOff {
+                                note: 69,
+                                velocity: 0.0,
+                            },
                             &mut self.sound,
                         );
                     }
@@ -456,16 +458,12 @@ impl Plugin for OsciPlugin {
         while let Some(event) = context.next_event() {
             match event {
                 NoteEvent::NoteOn { note, velocity, .. } => {
-                    self.synth.handle_midi_event(
-                        MidiEvent::NoteOn { note, velocity },
-                        &mut self.sound,
-                    );
+                    self.synth
+                        .handle_midi_event(MidiEvent::NoteOn { note, velocity }, &mut self.sound);
                 }
                 NoteEvent::NoteOff { note, velocity, .. } => {
-                    self.synth.handle_midi_event(
-                        MidiEvent::NoteOff { note, velocity },
-                        &mut self.sound,
-                    );
+                    self.synth
+                        .handle_midi_event(MidiEvent::NoteOff { note, velocity }, &mut self.sound);
                 }
                 _ => {}
             }
@@ -474,7 +472,10 @@ impl Plugin for OsciPlugin {
         // Drone mode: keep a voice alive when no MIDI is driving the synth
         if self.drone_active && self.synth.active_voice_count() == 0 {
             self.synth.handle_midi_event(
-                MidiEvent::NoteOn { note: 69, velocity: 1.0 },
+                MidiEvent::NoteOn {
+                    note: 69,
+                    velocity: 1.0,
+                },
                 &mut self.sound,
             );
         }
@@ -502,8 +503,10 @@ impl Plugin for OsciPlugin {
 
             vis.x.clear();
             vis.y.clear();
-            vis.x.extend_from_slice(&self.x_buf[src_start..src_start + copy_len]);
-            vis.y.extend_from_slice(&self.y_buf[src_start..src_start + copy_len]);
+            vis.x
+                .extend_from_slice(&self.x_buf[src_start..src_start + copy_len]);
+            vis.y
+                .extend_from_slice(&self.y_buf[src_start..src_start + copy_len]);
         }
 
         ProcessStatus::Normal
@@ -515,8 +518,11 @@ impl ClapPlugin for OsciPlugin {
     const CLAP_DESCRIPTION: Option<&'static str> = Some("Oscilloscope music synthesizer");
     const CLAP_MANUAL_URL: Option<&'static str> = None;
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
-    const CLAP_FEATURES: &'static [ClapFeature] =
-        &[ClapFeature::Instrument, ClapFeature::Synthesizer, ClapFeature::Stereo];
+    const CLAP_FEATURES: &'static [ClapFeature] = &[
+        ClapFeature::Instrument,
+        ClapFeature::Synthesizer,
+        ClapFeature::Stereo,
+    ];
 }
 
 impl Vst3Plugin for OsciPlugin {

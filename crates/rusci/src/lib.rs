@@ -126,8 +126,10 @@ impl Plugin for RusciPlugin {
 
             vis.x.clear();
             vis.y.clear();
-            vis.x.extend_from_slice(&output[0][src_start..src_start + copy_len]);
-            vis.y.extend_from_slice(&output[1][src_start..src_start + copy_len]);
+            vis.x
+                .extend_from_slice(&output[0][src_start..src_start + copy_len]);
+            vis.y
+                .extend_from_slice(&output[1][src_start..src_start + copy_len]);
         }
 
         ProcessStatus::Normal
@@ -201,8 +203,7 @@ fn draw_visualizer_settings(ui: &mut egui::Ui, s: &mut VisualiserSettings) {
 
 impl ClapPlugin for RusciPlugin {
     const CLAP_ID: &'static str = "com.rusci.rusci";
-    const CLAP_DESCRIPTION: Option<&'static str> =
-        Some("Audio-input oscilloscope visualizer");
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("Audio-input oscilloscope visualizer");
     const CLAP_MANUAL_URL: Option<&'static str> = None;
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
     const CLAP_FEATURES: &'static [ClapFeature] = &[
@@ -214,10 +215,8 @@ impl ClapPlugin for RusciPlugin {
 
 impl Vst3Plugin for RusciPlugin {
     const VST3_CLASS_ID: [u8; 16] = *b"rusciOsciScope!_";
-    const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[
-        Vst3SubCategory::Fx,
-        Vst3SubCategory::Analyzer,
-    ];
+    const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] =
+        &[Vst3SubCategory::Fx, Vst3SubCategory::Analyzer];
 }
 
 nih_export_clap!(RusciPlugin);

@@ -20,7 +20,10 @@ impl GodRayEffect {
     /// Simple LCG random number generator returning a value in [0, 1).
     fn next_random(&mut self) -> f64 {
         // LCG parameters (Numerical Recipes)
-        self.rng_state = self.rng_state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.rng_state = self
+            .rng_state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         // Extract bits and convert to [0, 1)
         let bits = (self.rng_state >> 33) as f64;
         bits / (1u64 << 31) as f64

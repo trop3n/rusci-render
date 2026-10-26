@@ -22,11 +22,23 @@ impl PersistencePass {
     pub fn new(gl: &glow::Context) -> Self {
         let program = compile_fullscreen_program(gl, shaders::PERSISTENCE_FRAGMENT);
 
-        let loc_current = unsafe { gl.get_uniform_location(program, "u_current").expect("u_current") };
-        let loc_previous = unsafe { gl.get_uniform_location(program, "u_previous").expect("u_previous") };
+        let loc_current = unsafe {
+            gl.get_uniform_location(program, "u_current")
+                .expect("u_current")
+        };
+        let loc_previous = unsafe {
+            gl.get_uniform_location(program, "u_previous")
+                .expect("u_previous")
+        };
         let loc_fade = unsafe { gl.get_uniform_location(program, "u_fade").expect("u_fade") };
-        let loc_afterglow_color = unsafe { gl.get_uniform_location(program, "u_afterglow_color").expect("u_afterglow_color") };
-        let loc_afterglow = unsafe { gl.get_uniform_location(program, "u_afterglow").expect("u_afterglow") };
+        let loc_afterglow_color = unsafe {
+            gl.get_uniform_location(program, "u_afterglow_color")
+                .expect("u_afterglow_color")
+        };
+        let loc_afterglow = unsafe {
+            gl.get_uniform_location(program, "u_afterglow")
+                .expect("u_afterglow")
+        };
 
         Self {
             program,
@@ -106,7 +118,9 @@ impl PersistencePass {
     }
 
     pub fn destroy(&self, gl: &glow::Context) {
-        unsafe { gl.delete_program(self.program); }
+        unsafe {
+            gl.delete_program(self.program);
+        }
         self.targets[0].destroy(gl);
         self.targets[1].destroy(gl);
     }
@@ -116,14 +130,18 @@ fn compile_fullscreen_program(gl: &glow::Context, frag_src: &str) -> glow::Progr
     unsafe {
         let program = gl.create_program().expect("create program");
 
-        let vert = gl.create_shader(glow::VERTEX_SHADER).expect("create vertex shader");
+        let vert = gl
+            .create_shader(glow::VERTEX_SHADER)
+            .expect("create vertex shader");
         gl.shader_source(vert, shaders::FULLSCREEN_VERTEX);
         gl.compile_shader(vert);
         if !gl.get_shader_compile_status(vert) {
             panic!("Vertex shader failed:\n{}", gl.get_shader_info_log(vert));
         }
 
-        let frag = gl.create_shader(glow::FRAGMENT_SHADER).expect("create fragment shader");
+        let frag = gl
+            .create_shader(glow::FRAGMENT_SHADER)
+            .expect("create fragment shader");
         gl.shader_source(frag, frag_src);
         gl.compile_shader(frag);
         if !gl.get_shader_compile_status(frag) {
@@ -134,7 +152,10 @@ fn compile_fullscreen_program(gl: &glow::Context, frag_src: &str) -> glow::Progr
         gl.attach_shader(program, frag);
         gl.link_program(program);
         if !gl.get_program_link_status(program) {
-            panic!("Program linking failed:\n{}", gl.get_program_info_log(program));
+            panic!(
+                "Program linking failed:\n{}",
+                gl.get_program_info_log(program)
+            );
         }
 
         gl.delete_shader(vert);

@@ -12,9 +12,7 @@ pub struct SmoothEffect {
 
 impl SmoothEffect {
     pub fn new() -> Self {
-        Self {
-            avg: Point::ZERO,
-        }
+        Self { avg: Point::ZERO }
     }
 }
 

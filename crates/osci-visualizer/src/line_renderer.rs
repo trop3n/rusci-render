@@ -17,8 +17,14 @@ impl LineRenderer {
     pub fn new(gl: &glow::Context, max_segments: usize) -> Self {
         let program = compile_program(gl, shaders::LINE_VERTEX, shaders::LINE_FRAGMENT);
 
-        let loc_sigma = unsafe { gl.get_uniform_location(program, "u_sigma").expect("u_sigma") };
-        let loc_intensity = unsafe { gl.get_uniform_location(program, "u_intensity").expect("u_intensity") };
+        let loc_sigma = unsafe {
+            gl.get_uniform_location(program, "u_sigma")
+                .expect("u_sigma")
+        };
+        let loc_intensity = unsafe {
+            gl.get_uniform_location(program, "u_intensity")
+                .expect("u_intensity")
+        };
 
         // Pre-allocate vertex buffer for max_segments * 4 vertices
         // Each vertex: pos(2) + other(2) + perp(1) + along(1) = 6 floats
@@ -52,7 +58,11 @@ impl LineRenderer {
             gl.vertex_attrib_pointer_f32(3, 1, glow::FLOAT, false, stride, 20);
 
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(ibo));
-            gl.buffer_data_size(glow::ELEMENT_ARRAY_BUFFER, ibo_size as i32, glow::DYNAMIC_DRAW);
+            gl.buffer_data_size(
+                glow::ELEMENT_ARRAY_BUFFER,
+                ibo_size as i32,
+                glow::DYNAMIC_DRAW,
+            );
 
             gl.bind_vertex_array(None);
             gl.bind_buffer(glow::ARRAY_BUFFER, None);
@@ -72,7 +82,14 @@ impl LineRenderer {
 
     /// Render line segments from x/y sample arrays into the currently bound FBO.
     /// Samples are in [-1, 1] and get mapped to [0, 1] UV space.
-    pub fn render(&self, gl: &glow::Context, x_samples: &[f32], y_samples: &[f32], sigma: f32, intensity: f32) {
+    pub fn render(
+        &self,
+        gl: &glow::Context,
+        x_samples: &[f32],
+        y_samples: &[f32],
+        sigma: f32,
+        intensity: f32,
+    ) {
         let n = x_samples.len().min(y_samples.len());
         if n < 2 {
             return;
@@ -126,7 +143,12 @@ impl LineRenderer {
             gl.enable(glow::BLEND);
             gl.blend_func(glow::ONE, glow::ONE);
 
-            gl.draw_elements(glow::TRIANGLES, (num_segments * 6) as i32, glow::UNSIGNED_INT, 0);
+            gl.draw_elements(
+                glow::TRIANGLES,
+                (num_segments * 6) as i32,
+                glow::UNSIGNED_INT,
+                0,
+            );
 
             gl.bind_vertex_array(None);
             gl.bind_buffer(glow::ARRAY_BUFFER, None);
@@ -148,7 +170,9 @@ fn compile_program(gl: &glow::Context, vert_src: &str, frag_src: &str) -> glow::
     unsafe {
         let program = gl.create_program().expect("create program");
 
-        let vert = gl.create_shader(glow::VERTEX_SHADER).expect("create vertex shader");
+        let vert = gl
+            .create_shader(glow::VERTEX_SHADER)
+            .expect("create vertex shader");
         gl.shader_source(vert, vert_src);
         gl.compile_shader(vert);
         if !gl.get_shader_compile_status(vert) {
@@ -156,7 +180,9 @@ fn compile_program(gl: &glow::Context, vert_src: &str, frag_src: &str) -> glow::
             panic!("Vertex shader compilation failed:\n{}", log);
         }
 
-        let frag = gl.create_shader(glow::FRAGMENT_SHADER).expect("create fragment shader");
+        let frag = gl
+            .create_shader(glow::FRAGMENT_SHADER)
+            .expect("create fragment shader");
         gl.shader_source(frag, frag_src);
         gl.compile_shader(frag);
         if !gl.get_shader_compile_status(frag) {
@@ -181,12 +207,18 @@ fn compile_program(gl: &glow::Context, vert_src: &str, frag_src: &str) -> glow::
 
 fn cast_slice_f32(data: &[f32]) -> &[u8] {
     unsafe {
-        std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * std::mem::size_of::<f32>())
+        std::slice::from_raw_parts(
+            data.as_ptr() as *const u8,
+            data.len() * std::mem::size_of::<f32>(),
+        )
     }
 }
 
 fn cast_slice_u32(data: &[u32]) -> &[u8] {
     unsafe {
-        std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * std::mem::size_of::<u32>())
+        std::slice::from_raw_parts(
+            data.as_ptr() as *const u8,
+            data.len() * std::mem::size_of::<u32>(),
+        )
     }
 }

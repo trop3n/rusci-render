@@ -33,7 +33,13 @@ impl SavedGlState {
     unsafe fn save(gl: &glow::Context) -> Self {
         let framebuffer = {
             let v = gl.get_parameter_i32(glow::FRAMEBUFFER_BINDING);
-            if v == 0 { None } else { Some(glow::NativeFramebuffer(std::num::NonZeroU32::new(v as u32).unwrap())) }
+            if v == 0 {
+                None
+            } else {
+                Some(glow::NativeFramebuffer(
+                    std::num::NonZeroU32::new(v as u32).unwrap(),
+                ))
+            }
         };
 
         let mut viewport = [0i32; 4];
@@ -51,14 +57,18 @@ impl SavedGlState {
         let program = if program_id == 0 {
             None
         } else {
-            Some(glow::NativeProgram(std::num::NonZeroU32::new(program_id as u32).unwrap()))
+            Some(glow::NativeProgram(
+                std::num::NonZeroU32::new(program_id as u32).unwrap(),
+            ))
         };
 
         let vao_id = gl.get_parameter_i32(glow::VERTEX_ARRAY_BINDING);
         let vao = if vao_id == 0 {
             None
         } else {
-            Some(glow::NativeVertexArray(std::num::NonZeroU32::new(vao_id as u32).unwrap()))
+            Some(glow::NativeVertexArray(
+                std::num::NonZeroU32::new(vao_id as u32).unwrap(),
+            ))
         };
 
         let scissor_enabled = gl.is_enabled(glow::SCISSOR_TEST);
@@ -69,7 +79,9 @@ impl SavedGlState {
             gl.active_texture(glow::TEXTURE0 + i as u32);
             let tex_id = gl.get_parameter_i32(glow::TEXTURE_BINDING_2D);
             if tex_id != 0 {
-                bound_textures[i] = Some(glow::NativeTexture(std::num::NonZeroU32::new(tex_id as u32).unwrap()));
+                bound_textures[i] = Some(glow::NativeTexture(
+                    std::num::NonZeroU32::new(tex_id as u32).unwrap(),
+                ));
             }
         }
         gl.active_texture(active_texture as u32);
@@ -94,7 +106,12 @@ impl SavedGlState {
 
     unsafe fn restore(&self, gl: &glow::Context) {
         gl.bind_framebuffer(glow::FRAMEBUFFER, self.framebuffer);
-        gl.viewport(self.viewport[0], self.viewport[1], self.viewport[2], self.viewport[3]);
+        gl.viewport(
+            self.viewport[0],
+            self.viewport[1],
+            self.viewport[2],
+            self.viewport[3],
+        );
 
         if self.blend_enabled {
             gl.enable(glow::BLEND);
@@ -170,7 +187,8 @@ impl OsciRenderer {
             self.line_fbo.bind(gl);
             gl.clear_color(0.0, 0.0, 0.0, 0.0);
             gl.clear(glow::COLOR_BUFFER_BIT);
-            self.line_renderer.render(gl, x_samples, y_samples, settings.focus, settings.intensity);
+            self.line_renderer
+                .render(gl, x_samples, y_samples, settings.focus, settings.intensity);
 
             // 3. Persistence: blend with previous frame
             let persisted_tex = self.persistence.render(
@@ -190,7 +208,8 @@ impl OsciRenderer {
             gl.viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 
             // 6. Composite final image
-            self.compositor.render(gl, persisted_tex, tight_tex, wide_tex, settings, &self.quad);
+            self.compositor
+                .render(gl, persisted_tex, tight_tex, wide_tex, settings, &self.quad);
 
             // 7. Restore all GL state
             saved.restore(gl);
@@ -217,7 +236,8 @@ impl OsciRenderer {
         for y in 0..height as usize {
             let src_row = y * row_bytes;
             let dst_row = (height as usize - 1 - y) * row_bytes;
-            flipped[dst_row..dst_row + row_bytes].copy_from_slice(&pixels[src_row..src_row + row_bytes]);
+            flipped[dst_row..dst_row + row_bytes]
+                .copy_from_slice(&pixels[src_row..src_row + row_bytes]);
         }
         flipped
     }

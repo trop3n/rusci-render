@@ -12,9 +12,7 @@ pub struct KaleidoscopeEffect {
 
 impl KaleidoscopeEffect {
     pub fn new() -> Self {
-        Self {
-            frame_phase: 0.0,
-        }
+        Self { frame_phase: 0.0 }
     }
 }
 
@@ -34,14 +32,7 @@ impl EffectApplication for KaleidoscopeEffect {
         let clip = values[3].clamp(0.0, 1.0) as f64;
 
         // Rotate input 90 degrees clockwise: (y, -x, z)
-        let rotated = Point::with_rgb(
-            input.y,
-            -input.x,
-            input.z,
-            input.r,
-            input.g,
-            input.b,
-        );
+        let rotated = Point::with_rgb(input.y, -input.x, input.z, input.r, input.g, input.b);
 
         // Apply spread: blend between rotated input and its projection onto the x axis
         // x_axis projection = (rotated.x, 0, rotated.z)

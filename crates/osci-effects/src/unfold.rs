@@ -34,10 +34,9 @@ impl EffectApplication for UnfoldEffect {
         let full_segments = segments.floor();
 
         // Advance phase
-        let phase_val = self.phase.next_phase(
-            frequency as f64 / (full_segments + 1.0),
-            sample_rate as f64,
-        );
+        let phase_val = self
+            .phase
+            .next_phase(frequency as f64 / (full_segments + 1.0), sample_rate as f64);
         // Normalize phase from [-PI, PI] to [0, 1]
         let normalized_phase = (phase_val + PI) / TAU;
 
@@ -45,9 +44,7 @@ impl EffectApplication for UnfoldEffect {
         let current_segment = current_segment_float.floor();
 
         // Convert input to polar
-        let r = ((input.x as f64) * (input.x as f64)
-            + (input.y as f64) * (input.y as f64))
-            .sqrt();
+        let r = ((input.x as f64) * (input.x as f64) + (input.y as f64) * (input.y as f64)).sqrt();
         let theta = (input.y as f64).atan2(input.x as f64);
 
         // Wedge angle for each segment

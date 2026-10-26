@@ -1,8 +1,8 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use osci_core::{EffectApplication, Point};
 use osci_effects::rotate::Rotate;
-use osci_effects::smooth::SmoothEffect;
 use osci_effects::scale::ScaleEffect;
+use osci_effects::smooth::SmoothEffect;
 
 fn bench_rotate_512(c: &mut Criterion) {
     let mut effect = Rotate::new();
@@ -27,11 +27,7 @@ fn bench_smooth_512(c: &mut Criterion) {
     c.bench_function("smooth_512_samples", |b| {
         b.iter(|| {
             for i in 0..512 {
-                let input = Point::new(
-                    (i as f32 * 0.1).sin(),
-                    (i as f32 * 0.1).cos(),
-                    0.0,
-                );
+                let input = Point::new((i as f32 * 0.1).sin(), (i as f32 * 0.1).cos(), 0.0);
                 black_box(effect.apply(i, input, ext, &values, 44100.0, 440.0));
             }
         });

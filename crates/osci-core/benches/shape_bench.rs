@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use osci_core::shape::{CircleArc, CubicBezierCurve, Line, Shape, total_length};
+use osci_core::shape::{total_length, CircleArc, CubicBezierCurve, Line, Shape};
 use osci_core::Point;
 
 fn bench_line_sample_1000(c: &mut Criterion) {
@@ -42,8 +42,16 @@ fn bench_total_length_100_shapes(c: &mut Criterion) {
             if i % 3 == 0 {
                 Box::new(Line::new_2d(f, f, f + 0.1, f + 0.1)) as Box<dyn Shape>
             } else if i % 3 == 1 {
-                Box::new(CubicBezierCurve::new(f, f, f + 0.1, f + 0.2, f + 0.2, f + 0.1, f + 0.3, f))
-                    as Box<dyn Shape>
+                Box::new(CubicBezierCurve::new(
+                    f,
+                    f,
+                    f + 0.1,
+                    f + 0.2,
+                    f + 0.2,
+                    f + 0.1,
+                    f + 0.3,
+                    f,
+                )) as Box<dyn Shape>
             } else {
                 Box::new(CircleArc::new(f, f, 0.1, 0.1, 0.0, std::f32::consts::TAU))
                     as Box<dyn Shape>

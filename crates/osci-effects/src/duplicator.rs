@@ -13,9 +13,7 @@ pub struct DuplicatorEffect {
 
 impl DuplicatorEffect {
     pub fn new() -> Self {
-        Self {
-            frame_phase: 0.0,
-        }
+        Self { frame_phase: 0.0 }
     }
 }
 

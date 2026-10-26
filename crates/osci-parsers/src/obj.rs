@@ -34,11 +34,7 @@ pub fn parse_obj(data: &[u8]) -> Result<Vec<Box<dyn Shape>>, String> {
         // Extract vertices (positions is [x0, y0, z0, x1, y1, z1, ...])
         let num_vertices = positions.len() / 3;
         for i in 0..num_vertices {
-            all_vertices.push([
-                positions[i * 3],
-                positions[i * 3 + 1],
-                positions[i * 3 + 2],
-            ]);
+            all_vertices.push([positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]]);
         }
 
         // Extract edges from faces
@@ -143,10 +139,7 @@ pub fn parse_obj(data: &[u8]) -> Result<Vec<Box<dyn Shape>>, String> {
 /// endpoint is closest to the current position. Edges can be traversed in
 /// either direction, so for each candidate we check the distance from the
 /// current position to both the start and end of the candidate edge.
-fn reorder_edges_nearest_neighbor(
-    edges: &[(u32, u32)],
-    vertices: &[[f32; 3]],
-) -> Vec<(u32, u32)> {
+fn reorder_edges_nearest_neighbor(edges: &[(u32, u32)], vertices: &[[f32; 3]]) -> Vec<(u32, u32)> {
     let n = edges.len();
     let mut used = vec![false; n];
     let mut result = Vec::with_capacity(n);

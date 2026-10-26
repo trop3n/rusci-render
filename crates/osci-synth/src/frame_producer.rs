@@ -154,9 +154,7 @@ mod tests {
 
     #[test]
     fn test_static_frame_source() {
-        let shapes: Frame = vec![
-            Box::new(Line::new_2d(0.0, 0.0, 1.0, 1.0)),
-        ];
+        let shapes: Frame = vec![Box::new(Line::new_2d(0.0, 0.0, 1.0, 1.0))];
         let mut source = StaticFrameSource::new(shapes);
         let frame = source.next_frame().unwrap();
         assert_eq!(frame.len(), 1);
@@ -180,9 +178,7 @@ mod tests {
 
     #[test]
     fn test_frame_producer_lifecycle() {
-        let shapes: Frame = vec![
-            Box::new(Line::new_2d(-1.0, -1.0, 1.0, 1.0)),
-        ];
+        let shapes: Frame = vec![Box::new(Line::new_2d(-1.0, -1.0, 1.0, 1.0))];
         let source = StaticFrameSource::new(shapes);
         let (tx, rx) = bounded(4);
 

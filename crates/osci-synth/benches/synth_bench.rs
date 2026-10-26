@@ -18,7 +18,13 @@ fn bench_synth_render_512(c: &mut Criterion) {
 
     // Start 4 voices
     for note in [60, 64, 67, 72] {
-        synth.handle_midi_event(MidiEvent::NoteOn { note, velocity: 1.0 }, &mut sound);
+        synth.handle_midi_event(
+            MidiEvent::NoteOn {
+                note,
+                velocity: 1.0,
+            },
+            &mut sound,
+        );
     }
 
     let num_samples = 512;
@@ -44,7 +50,13 @@ fn bench_synth_render_1024(c: &mut Criterion) {
     let mut sound = make_sound_with_line();
 
     for note in [60, 64, 67, 72] {
-        synth.handle_midi_event(MidiEvent::NoteOn { note, velocity: 1.0 }, &mut sound);
+        synth.handle_midi_event(
+            MidiEvent::NoteOn {
+                note,
+                velocity: 1.0,
+            },
+            &mut sound,
+        );
     }
 
     let num_samples = 1024;

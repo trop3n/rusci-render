@@ -8,4 +8,4 @@ pub mod websocket;
 pub use config::NetConfig;
 pub use frame_channel::FrameSink;
 pub use server::NetServer;
-pub use shared_texture::{SharedTexture, create_shared_texture};
+pub use shared_texture::{create_shared_texture, SharedTexture};

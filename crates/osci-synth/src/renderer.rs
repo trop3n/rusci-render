@@ -72,7 +72,11 @@ impl ShapeRenderer {
         let point = if self.current_shape < self.shapes.len() {
             let shape = &self.shapes[self.current_shape];
             let length = shape.length() as f64;
-            let progress = if length == 0.0 { 1.0 } else { self.shape_drawn / length };
+            let progress = if length == 0.0 {
+                1.0
+            } else {
+                self.shape_drawn / length
+            };
             let mut p = shape.next_vector(progress as f32);
             p.z = 1.0;
             p
@@ -101,7 +105,11 @@ impl ShapeRenderer {
         let point = if self.current_shape < self.shapes.len() {
             let shape = &self.shapes[self.current_shape];
             let length = shape.length() as f64;
-            let progress = if length == 0.0 { 1.0 } else { self.shape_drawn / length };
+            let progress = if length == 0.0 {
+                1.0
+            } else {
+                self.shape_drawn / length
+            };
             shape.next_vector(progress as f32)
         } else {
             Point::new(0.0, 0.0, 1.0)
@@ -201,10 +209,7 @@ mod tests {
     #[test]
     fn test_renderer_with_line() {
         let mut r = ShapeRenderer::new(44100.0, 60.0);
-        let line = Line::from_points(
-            Point::new(-1.0, -1.0, 0.0),
-            Point::new(1.0, 1.0, 0.0),
-        );
+        let line = Line::from_points(Point::new(-1.0, -1.0, 0.0), Point::new(1.0, 1.0, 0.0));
         r.set_shapes(vec![Box::new(line)]);
 
         // Should produce points along the line
@@ -246,7 +251,11 @@ mod tests {
         r.set_shapes(square());
         let samples: Vec<Point> = (0..64 * 10).map(|_| r.next_vector()).collect();
         for (i, p) in samples.iter().enumerate().skip(64) {
-            assert!(close(*p, samples[i - 64]), "sample {i}: {p:?} vs {:?}", samples[i - 64]);
+            assert!(
+                close(*p, samples[i - 64]),
+                "sample {i}: {p:?} vs {:?}",
+                samples[i - 64]
+            );
         }
     }
 
@@ -285,10 +294,7 @@ mod tests {
     #[test]
     fn test_frame_length() {
         let mut r = ShapeRenderer::new(44100.0, 60.0);
-        let line = Line::from_points(
-            Point::new(0.0, 0.0, 0.0),
-            Point::new(1.0, 0.0, 0.0),
-        );
+        let line = Line::from_points(Point::new(0.0, 0.0, 0.0), Point::new(1.0, 0.0, 0.0));
         r.set_shapes(vec![Box::new(line)]);
         assert!(r.frame_length() > 0.0);
     }

@@ -220,13 +220,19 @@ mod tests {
         let mut sound = make_sound_with_line();
 
         synth.handle_midi_event(
-            MidiEvent::NoteOn { note: 69, velocity: 1.0 },
+            MidiEvent::NoteOn {
+                note: 69,
+                velocity: 1.0,
+            },
             &mut sound,
         );
         assert_eq!(synth.active_voice_count(), 1);
 
         synth.handle_midi_event(
-            MidiEvent::NoteOff { note: 69, velocity: 0.0 },
+            MidiEvent::NoteOff {
+                note: 69,
+                velocity: 0.0,
+            },
             &mut sound,
         );
         // Voice may still be active (in release phase) depending on tail-off
@@ -238,7 +244,10 @@ mod tests {
         let mut sound = make_sound_with_line();
 
         synth.handle_midi_event(
-            MidiEvent::NoteOn { note: 69, velocity: 1.0 },
+            MidiEvent::NoteOn {
+                note: 69,
+                velocity: 1.0,
+            },
             &mut sound,
         );
 
@@ -250,8 +259,7 @@ mod tests {
         synth.render_next_block(&mut x, &mut y, &mut z, num_samples, &mut sound);
 
         // Should have non-zero output
-        let has_output = x.iter().any(|v| v.abs() > 0.001)
-            || y.iter().any(|v| v.abs() > 0.001);
+        let has_output = x.iter().any(|v| v.abs() > 0.001) || y.iter().any(|v| v.abs() > 0.001);
         assert!(has_output);
     }
 
@@ -261,12 +269,30 @@ mod tests {
         let mut sound = make_sound_with_line();
 
         // Fill all voices
-        synth.handle_midi_event(MidiEvent::NoteOn { note: 60, velocity: 1.0 }, &mut sound);
-        synth.handle_midi_event(MidiEvent::NoteOn { note: 64, velocity: 1.0 }, &mut sound);
+        synth.handle_midi_event(
+            MidiEvent::NoteOn {
+                note: 60,
+                velocity: 1.0,
+            },
+            &mut sound,
+        );
+        synth.handle_midi_event(
+            MidiEvent::NoteOn {
+                note: 64,
+                velocity: 1.0,
+            },
+            &mut sound,
+        );
         assert_eq!(synth.active_voice_count(), 2);
 
         // Third note should steal a voice
-        synth.handle_midi_event(MidiEvent::NoteOn { note: 67, velocity: 1.0 }, &mut sound);
+        synth.handle_midi_event(
+            MidiEvent::NoteOn {
+                note: 67,
+                velocity: 1.0,
+            },
+            &mut sound,
+        );
         assert_eq!(synth.active_voice_count(), 2);
     }
 }
