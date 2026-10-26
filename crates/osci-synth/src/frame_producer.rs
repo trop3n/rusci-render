@@ -8,8 +8,9 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
+use std::time::Duration;
 
-use crossbeam::channel::Sender;
+use crossbeam::channel::{SendTimeoutError, Sender};
 use osci_core::shape::Shape;
 
 /// A frame is a vector of boxed shapes.
@@ -80,6 +81,9 @@ impl FrameSource for AnimatedFrameSource {
     }
 }
 
+/// How often a producer waiting on a full queue checks whether to stop.
+const STOP_POLL: Duration = Duration::from_millis(20);
+
 /// Background frame producer thread.
 ///
 /// Continuously generates frames from a `FrameSource` and sends them
@@ -101,19 +105,25 @@ impl FrameProducer {
         let thread = thread::Builder::new()
             .name("frame-producer".to_string())
             .spawn(move || {
-                while running_clone.load(Ordering::Relaxed) {
-                    match source.next_frame() {
-                        Some(frame) => {
-                            // Send will block if the queue is full, providing
-                            // natural backpressure
-                            if frame_tx.send(frame).is_err() {
-                                // Channel disconnected, stop producing
-                                break;
+                'produce: while running_clone.load(Ordering::Relaxed) {
+                    // `None` means the source is exhausted.
+                    let Some(mut frame) = source.next_frame() else {
+                        break;
+                    };
+                    // Wait while the queue is full (natural backpressure),
+                    // but keep checking for stop: a plain blocking send
+                    // would hang `stop()` if the consumer stops reading.
+                    loop {
+                        match frame_tx.send_timeout(frame, STOP_POLL) {
+                            Ok(()) => break,
+                            Err(SendTimeoutError::Timeout(f)) => {
+                                if !running_clone.load(Ordering::Relaxed) {
+                                    break 'produce;
+                                }
+                                frame = f;
                             }
-                        }
-                        None => {
-                            // Source exhausted, stop
-                            break;
+                            // Channel disconnected, stop producing
+                            Err(SendTimeoutError::Disconnected(_)) => break 'produce,
                         }
                     }
                 }
@@ -191,5 +201,28 @@ mod tests {
         // Stop the producer
         producer.stop();
         assert!(!producer.is_running());
+    }
+
+    #[test]
+    fn stop_returns_while_queue_is_full() {
+        // Nobody reads, so the producer fills the queue and waits on it.
+        let shapes: Frame = vec![Box::new(Line::new_2d(-1.0, -1.0, 1.0, 1.0))];
+        let (tx, rx) = bounded(1);
+        let mut producer = FrameProducer::start(StaticFrameSource::new(shapes), tx);
+        while !rx.is_full() {
+            thread::sleep(Duration::from_millis(1));
+        }
+        thread::sleep(Duration::from_millis(50));
+
+        let (done_tx, done_rx) = bounded(1);
+        thread::spawn(move || {
+            producer.stop();
+            let _ = done_tx.send(());
+        });
+        assert!(
+            done_rx.recv_timeout(Duration::from_secs(5)).is_ok(),
+            "stop() hung while the queue was full"
+        );
+        drop(rx);
     }
 }
